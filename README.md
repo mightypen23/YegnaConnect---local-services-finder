@@ -17,8 +17,8 @@ A mobile-first app connecting households with skillful local service proffession
 - [Yitayal Yalelet (CTC-668-26)](https://www.github.com/mightypen23)
 - [Kebron Ashenafi (CTC-668-26)](https://www.github.com/Kebron-developer)
 - [Dawit (CTC-668-26)](https://www.github.com/Dawit2060)
-- [Yishak Abel (CTC-668-26)](https://www.github.com/yishakabel76-svg )
-- [Zinegnaw  (CTC-668-26)](https://www.github.com/Zinawk)
+- [Yishak Abel (CTC-1212-26)](https://www.github.com/yishakabel76-svg )
+- [Zinegnaw Kebede (CTC-514-26)](https://www.github.com/Zinawk)
 
 
 
