@@ -15,10 +15,10 @@ A mobile-first app connecting households with skillful local service proffession
 ## Authors
 
 - [Yitayal Yalelet (CTC-668-26)](https://www.github.com/mightypen23)
-- [Kebron Ashenafi (CTC-668-26)](https://www.github.com/Kebron-developer)
-- [Dawit (CTC-668-26)](https://www.github.com/Dawit2060)
-- [Yishak Abel (CTC-668-26)](https://www.github.com/yishakabel76-svg )
-- [Zinegnaw  (CTC-668-26)](https://www.github.com/Zinawk)
+- [Kebron Ashenafi (CTC-673-26)](https://www.github.com/Kebron-developer)
+- [Dawit Birhanu(CTC-4732-26)](https://www.github.com/Dawit2060)
+- [Yishak Abel (CTC-1212-26)](https://www.github.com/yishakabel76-svg )
+- [Zinegnaw  (CTC-514-26)](https://www.github.com/Zinawk)
 
 
 
