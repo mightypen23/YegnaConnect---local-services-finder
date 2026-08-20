@@ -17,6 +17,7 @@ class YegnaConnectApp extends StatelessWidget {
       title: AppConstants.appName,
       theme: AppTheme.lightTheme,
       routerConfig: appRouter,
+      debugShowCheckedModeBanner: false,
     );
   }
 }

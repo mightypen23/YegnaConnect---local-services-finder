@@ -6,6 +6,7 @@ const ProviderLocation = require('./ProviderLocation');
 const Review = require('./Review');
 const VerificationBadge = require('./VerificationBadge');
 const ServiceRequest = require('./ServiceRequest');
+const SubscriptionPlan = require('./SubscriptionPlan');
 const Subscription = require('./Subscription');
 const CreditTransaction = require('./CreditTransaction');
 const SyncQueue = require('./SyncQueue');
@@ -52,6 +53,10 @@ Category.hasMany(ServiceRequest, { foreignKey: 'category_id', as: 'requests' });
 Review.belongsTo(ServiceRequest, { foreignKey: 'request_id', as: 'request' });
 ServiceRequest.hasMany(Review, { foreignKey: 'request_id', as: 'reviews' });
 
+// SubscriptionPlan <-> Subscription
+SubscriptionPlan.hasMany(Subscription, { foreignKey: 'plan_id', as: 'subscriptions' });
+Subscription.belongsTo(SubscriptionPlan, { foreignKey: 'plan_id', as: 'plan' });
+
 // Subscription belongs to ServiceProvider
 Subscription.belongsTo(ServiceProvider, { foreignKey: 'provider_id', as: 'provider' });
 ServiceProvider.hasMany(Subscription, { foreignKey: 'provider_id', as: 'subscriptions' });
@@ -69,6 +74,7 @@ module.exports = {
   Review,
   VerificationBadge,
   ServiceRequest,
+  SubscriptionPlan,
   Subscription,
   CreditTransaction,
   SyncQueue

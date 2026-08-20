@@ -22,14 +22,13 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes will be added here
-// app.use('/api/auth', require('./routes/auth'));
-// app.use('/api/providers', require('./routes/providers'));
-// app.use('/api/categories', require('./routes/categories'));
-// app.use('/api/requests', require('./routes/requests'));
-// app.use('/api/reviews', require('./routes/reviews'));
-// app.use('/api/admin', require('./routes/admin'));
-// app.use('/api/sync', require('./routes/sync'));
+// Routes
+app.use('/api/requests', require('./routes/requests'));
+app.use('/api/reviews', require('./routes/reviews'));
+app.use('/api/plans', require('./routes/plans'));
+app.use('/api/subscriptions', require('./routes/subscriptions'));
+app.use('/api/credits', require('./routes/credits'));
+app.use('/api/sync', require('./routes/sync'));
 
 // 404 handler
 app.use((req, res) => {

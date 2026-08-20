@@ -1,0 +1,18 @@
+<svg width="800" height="800" viewBox="0 100 800 620" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Left Arm (Light Green) -->
+  <path d="M 280 280 L 400 400" stroke="#8CC63F" stroke-width="70" stroke-linecap="round"/>
+  
+  <!-- Right Arm (Blue) -->
+  <path d="M 520 280 L 400 400" stroke="#4A90E2" stroke-width="70" stroke-linecap="round"/>
+  
+  <!-- Location Pin (Dark Green) -->
+  <path d="M 400 360 C 360 360 330 395 330 435 C 330 495 400 580 400 580 C 400 580 470 495 470 435 C 470 395 440 360 400 360 Z" fill="#27A148"/>
+  <circle cx="400" cy="425" r="25" fill="white"/>
+
+  <!-- Head (Blue) -->
+  <circle cx="400" cy="180" r="55" fill="#4A90E2"/>
+
+  <!-- Brand Text -->
+  <text x="395" y="680" font-family="Arial, sans-serif" font-size="85" font-weight="bold" fill="#27A148" text-anchor="end">Yegna</text>
+  <text x="405" y="680" font-family="Arial, sans-serif" font-size="85" font-weight="bold" fill="#4A90E2" text-anchor="start">Connect</text>
+</svg>

@@ -1,9 +1,9 @@
 const { Sequelize } = require('sequelize');
 
 const sequelize = new Sequelize(
-  process.env.DB_NAME || 'yegna_connect',
+  process.env.DB_NAME || 'postgres',
   process.env.DB_USER || 'postgres',
-  process.env.DB_PASSWORD || 'postgres',
+  process.env.DB_PASSWORD || '@I4bh1i7b#',
   {
     host: process.env.DB_HOST || 'localhost',
     port: process.env.DB_PORT || 5432,

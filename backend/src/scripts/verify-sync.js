@@ -9,6 +9,7 @@ const {
   Review,
   VerificationBadge,
   ServiceRequest,
+  SubscriptionPlan,
   Subscription,
   CreditTransaction,
   SyncQueue
@@ -23,6 +24,7 @@ const TABLES = [
   'reviews',
   'verification_badges',
   'service_requests',
+  'subscription_plans',
   'subscriptions',
   'credit_transactions',
   'sync_queue'
