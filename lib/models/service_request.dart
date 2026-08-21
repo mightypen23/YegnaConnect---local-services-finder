@@ -62,7 +62,7 @@ class ServiceRequest {
     required this.createdAt,
     required this.scheduledAt,
     this.isUnlockedByProvider = false,
-    this.unlockCreditCost = 5,
+    this.unlockCreditCost = 10,
     required this.syncToken,
     this.isSyncedOffline = true,
   });
@@ -155,6 +155,21 @@ class ServiceRequest {
       unlockCreditCost: json['unlockCreditCost'] as int? ?? 5,
       syncToken: json['syncToken'] as String? ?? json['id'] as String,
       isSyncedOffline: (json['isSyncedOffline'] == 1 || json['isSyncedOffline'] == true),
+    );
+  }
+
+  factory ServiceRequest.fromApiJson(Map<String, dynamic> json) {
+    final customer = json['customer'] as Map<String, dynamic>?;
+    final provider = json['provider'] as Map<String, dynamic>?;
+    final category = json['category'] as Map<String, dynamic>?;
+    final created = DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now();
+    return ServiceRequest(
+      id: json['id'].toString(), customerId: json['customer_id']?.toString() ?? '',
+      customerName: customer?['full_name']?.toString() ?? 'Customer', providerId: json['provider_id']?.toString() ?? '',
+      providerName: provider?['user']?['full_name']?.toString() ?? 'Unassigned provider', categoryId: json['category_id']?.toString() ?? '',
+      serviceTitle: category?['name']?.toString() ?? 'Service request', description: json['description']?.toString() ?? '', location: 'Addis Ababa',
+      status: RequestStatus.values.firstWhere((s) => s.name == json['status'], orElse: () => RequestStatus.pending), createdAt: created, scheduledAt: created,
+      syncToken: json['client_id']?.toString() ?? json['id'].toString(),
     );
   }
 }

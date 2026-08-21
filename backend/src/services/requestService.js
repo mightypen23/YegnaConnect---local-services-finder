@@ -3,7 +3,7 @@ const { ServiceRequest, ServiceProvider, Category, User } = require('../models')
 const requestRepository = require('../repositories/RequestRepository');
 const creditService = require('./creditService');
 
-const LEAD_COST = 1; // Credits deducted when a provider accepts a request
+const LEAD_COST = 10; // YC Coins deducted when a provider accepts a request
 
 /**
  * Create a new service request from a customer.
@@ -26,7 +26,7 @@ async function createRequest(customerId, data) {
       const err = new Error('Provider not found');
       err.status = 404;
       throw err;
-    } ewe
+    }
   }
 
   const request = await requestRepository.create({

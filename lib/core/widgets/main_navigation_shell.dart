@@ -118,8 +118,8 @@ class _VisilyBottomNavBar extends StatelessWidget {
             onTap: () => onTap(2),
           ),
           _NavBarItem(
-            icon: Icons.bookmark_outline_rounded,
-            activeIcon: Icons.bookmark_rounded,
+            icon: Icons.history_rounded,
+            activeIcon: Icons.history_rounded,
             isSelected: selectedIndex == 3,
             badgeCount: badgeCount,
             onTap: () => onTap(3),

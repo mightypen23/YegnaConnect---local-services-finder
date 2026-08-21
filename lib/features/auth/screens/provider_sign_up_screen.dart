@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../models/category.dart';
+import '../../../providers/app_providers.dart';
 import '../widgets/auth_widgets.dart';
 
-class ProviderSignUpScreen extends StatefulWidget {
+class ProviderSignUpScreen extends ConsumerStatefulWidget {
   const ProviderSignUpScreen({super.key});
 
   @override
-  State<ProviderSignUpScreen> createState() => _ProviderSignUpScreenState();
+  ConsumerState<ProviderSignUpScreen> createState() => _ProviderSignUpScreenState();
 }
 
-class _ProviderSignUpScreenState extends State<ProviderSignUpScreen> {
+class _ProviderSignUpScreenState extends ConsumerState<ProviderSignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -20,6 +21,7 @@ class _ProviderSignUpScreenState extends State<ProviderSignUpScreen> {
   final _descriptionController = TextEditingController();
 
   String? _selectedCategory;
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -77,34 +79,30 @@ class _ProviderSignUpScreenState extends State<ProviderSignUpScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Phone Number Field (Required)
-                AuthField(
-                  label: 'Phone number *',
-                  icon: Icons.phone_outlined,
-                  keyboardType: TextInputType.phone,
+                // Phone Number Field (Required) — Ethiopian format with +251 pre-filled
+                EthiopianPhoneField(
                   controller: _phoneController,
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) {
-                      return 'Phone number is required';
-                    }
-                    return null;
-                  },
+                  label: 'Phone number *',
                 ),
                 const SizedBox(height: 14),
 
                 // Service Offered Dropdown Field (Required)
                 DropdownButtonFormField<String>(
                   initialValue: _selectedCategory,
+                  isExpanded: true,
+                  menuMaxHeight: 320,
                   decoration: const InputDecoration(
                     labelText: 'Service you provide *',
                     labelStyle: TextStyle(color: AppTheme.muted, fontSize: 14),
                     prefixIcon: Icon(Icons.handyman_outlined, size: 20, color: AppTheme.muted),
                   ),
-                  items: ServiceCategory.defaultCategories.map((c) {
+                  items: ref.watch(categoriesProvider).map((c) {
                     return DropdownMenuItem(
                       value: c.id,
                       child: Text(
                         c.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(color: AppTheme.ink, fontSize: 14),
                       ),
                     );
@@ -153,12 +151,35 @@ class _ProviderSignUpScreenState extends State<ProviderSignUpScreen> {
                 // Submit Button
                 AuthButton(
                   label: 'Continue',
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Provider profile registered successfully!')),
-                      );
-                      context.go('/provider-home');
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate() && !_submitting) {
+                      setState(() => _submitting = true);
+                      try {
+                        final token = await ref.read(secureStorageProvider).read(key: 'auth_token');
+                        if (token == null) throw Exception('Please sign in again before creating a provider profile');
+                        await ref.read(marketplaceApiProvider).createProvider(
+                          token: token,
+                          fullName: _nameController.text,
+                          // Bug #3 fix: use full +251XXXXXXXXX number
+                          phoneNumber: EthiopianPhoneField.fullNumber(_phoneController),
+                          bio: _descriptionController.text,
+                          categoryId: _selectedCategory!,
+                          location: _locationController.text,
+                        );
+                        await ref.read(userProvider.notifier).loadFromServer();
+                        // Bug #3 fix: mounted check BEFORE using context/ScaffoldMessenger
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Provider profile registered successfully!')),
+                        );
+                        context.go('/provider-home');
+                      } catch (error) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))));
+                        }
+                      } finally {
+                        if (mounted) setState(() => _submitting = false);
+                      }
                     }
                   },
                 ),

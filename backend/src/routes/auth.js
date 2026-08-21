@@ -11,7 +11,9 @@ const {
   verifyOtp,
   register,
   login,
-  me
+  me,
+  updateMeValidators,
+  updateMe
 } = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
 
@@ -36,5 +38,6 @@ router.post('/otp/verify', otpVerifyLimiter, verifyOtpValidators, verifyOtp);
 router.post('/register', registerValidators, register);
 router.post('/login', loginValidators, login);
 router.get('/me', authenticate, me);
+router.put('/me', authenticate, updateMeValidators, updateMe);
 
 module.exports = router;

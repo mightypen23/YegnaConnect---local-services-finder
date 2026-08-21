@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const { sequelize } = require('./config/database');
+require('./models');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,7 +12,9 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000'
+  // Flutter web runs on a development port different from the API port.
+  // Restrict origins in production, but keep local development usable.
+  origin: process.env.NODE_ENV === 'production' ? (process.env.CORS_ORIGIN || false) : true
 }));
 app.use(morgan('dev'));
 app.use(express.json());
@@ -22,8 +25,20 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.get('/health/db', async (req, res, next) => {
+  try {
+    await sequelize.authenticate();
+    res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Routes
 app.use('/api/requests', require('./routes/requests'));
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/providers', require('./routes/providers'));
+app.use('/api/categories', require('./routes/categories'));
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/plans', require('./routes/plans'));
 app.use('/api/subscriptions', require('./routes/subscriptions'));
@@ -38,7 +53,7 @@ app.use((req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Something went wrong!',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
@@ -49,12 +64,12 @@ const startServer = async () => {
   try {
     await sequelize.authenticate();
     console.log('Database connection established successfully.');
-    
+
     if (process.env.NODE_ENV === 'development') {
       await sequelize.sync();
       console.log('Database models synchronized.');
     }
-    
+
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

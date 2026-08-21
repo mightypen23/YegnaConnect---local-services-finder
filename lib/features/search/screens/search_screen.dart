@@ -27,6 +27,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     final providers = ref.watch(filteredProvidersProvider);
     final selectedCategory = ref.watch(selectedCategoryFilterProvider);
+    final categories = ref.watch(categoriesProvider);
+    final isLoading = ref.watch(marketplaceLoadingProvider);
+    final loadError = ref.watch(marketplaceErrorProvider);
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -147,9 +150,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     height: 110,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: ServiceCategory.defaultCategories.length,
+                      itemCount: categories.length,
                       itemBuilder: (context, index) {
-                        final cat = ServiceCategory.defaultCategories[index];
+                        final cat = categories[index];
                         final isSelected = selectedCategory == cat.id;
                         return Padding(
                           padding: const EdgeInsets.only(right: 12),
@@ -214,13 +217,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   const SizedBox(height: 12),
 
                   // Providers List
-                  if (providers.isEmpty)
-                    const Padding(
+                  if (isLoading)
+                    const Padding(padding: EdgeInsets.symmetric(vertical: 40), child: Center(child: CircularProgressIndicator()))
+                  else if (providers.isEmpty)
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
                       child: Center(
                         child: Text(
-                          'No providers found matching your search.',
+                          loadError ?? 'No providers found matching your search.',
                           style: TextStyle(color: AppTheme.muted),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     )

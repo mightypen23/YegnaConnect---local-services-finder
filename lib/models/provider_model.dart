@@ -28,11 +28,11 @@ class ProviderModel {
     this.profileImage,
     required this.location,
     required this.bio,
-    this.rating = 4.0,
-    this.reviewCount = 1200,
-    this.skillsCount = 6,
-    this.completedOrders = 89,
-    this.totalOrders = 94,
+    this.rating = 0,
+    this.reviewCount = 0,
+    this.skillsCount = 0,
+    this.completedOrders = 0,
+    this.totalOrders = 0,
     required this.services,
     this.isVerified = true,
     this.verificationStatus = VerificationStatus.approved,
@@ -40,6 +40,24 @@ class ProviderModel {
     this.latitude = 9.0192,
     this.longitude = 38.7525,
   });
+
+  factory ProviderModel.fromJson(Map<String, dynamic> json) {
+    final location = json['location'] as Map<String, dynamic>?;
+    final categories = (json['categories'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map((c) => c['name']?.toString() ?? '')
+        .where((name) => name.isNotEmpty).toList();
+    final verification = json['verification_status']?.toString() ?? 'pending';
+    return ProviderModel(
+      id: json['id'].toString(), userId: json['user_id']?.toString() ?? '',
+      fullName: json['full_name']?.toString() ?? 'Service Provider', phoneNumber: json['phone_number']?.toString() ?? '',
+      location: location?['address']?.toString() ?? location?['city']?.toString() ?? 'Addis Ababa', bio: json['bio']?.toString() ?? '',
+      rating: (json['trust_score'] as num?)?.toDouble() ?? 0, services: categories,
+      skillsCount: categories.length, isVerified: verification == 'verified',
+      verificationStatus: verification == 'verified' ? VerificationStatus.approved : VerificationStatus.values.firstWhere((s) => s.name == verification, orElse: () => VerificationStatus.pending),
+      latitude: (location?['latitude'] as num?)?.toDouble() ?? 9.0192, longitude: (location?['longitude'] as num?)?.toDouble() ?? 38.7525,
+    );
+  }
 
   ProviderModel copyWith({
     String? id,

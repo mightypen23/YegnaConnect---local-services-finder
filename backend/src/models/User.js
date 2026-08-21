@@ -16,6 +16,10 @@ const User = sequelize.define('User', {
     unique: true,
     allowNull: true
   },
+  profile_image: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
   email: {
     type: DataTypes.STRING,
     unique: true,
@@ -48,6 +52,12 @@ const User = sequelize.define('User', {
   verification_code_expires: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  // Bug #9 fix: was referenced in authService.js but missing from schema
+  verification_attempts: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    allowNull: false
   }
 }, {
   tableName: 'users',

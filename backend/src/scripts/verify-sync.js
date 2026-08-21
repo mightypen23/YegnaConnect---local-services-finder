@@ -57,10 +57,14 @@ async function verifySync() {
 
     // Step 3: Verify tables exist
     console.log('3. Verifying tables exist...');
-    const [results] = await sequelize.query(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
-    );
-    const existingTables = results.map(r => r.table_name);
+    // Use Sequelize's dialect-aware discovery rather than assuming the
+    // connection's active schema is always `public`.
+    const discoveredTables = await sequelize.getQueryInterface().showAllTables();
+    const existingTables = discoveredTables.map((table) => {
+      if (typeof table === 'string') return table;
+      return table.tableName || table.table_name || table.name;
+    }).filter(Boolean);
+    console.log(`   Discovered tables: ${existingTables.join(', ') || '(none)'}`);
 
     let allTablesExist = true;
     for (const table of TABLES) {
@@ -84,10 +88,14 @@ async function verifySync() {
     // Step 4: Test basic associations
     console.log('4. Testing associations...');
 
+    // Use unique test data so verification can be run repeatedly without
+    // colliding with the users.phone_number unique constraint.
+    const testPhone = `+251911${String(Date.now()).slice(-7)}`;
+
     // Create a user
     const user = await User.create({
       full_name: 'Test User',
-      phone_number: '+251911111111',
+      phone_number: testPhone,
       role: 'customer'
     });
     console.log('   ✓ Created test user');
@@ -99,9 +107,10 @@ async function verifySync() {
     });
     console.log('   ✓ Created test provider (belongsTo User)');
 
-    // Create a category
+    // Use a unique category name so repeated verification runs do not collide
+    // with the service_categories.name unique constraint.
     const category = await Category.create({
-      name: 'Plumbing',
+      name: `Verification Plumbing ${Date.now()}`,
       name_amharic: 'ፔምቢንግ'
     });
     console.log('   ✓ Created test category');

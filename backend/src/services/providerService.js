@@ -101,10 +101,18 @@ async function getPublicById(id) {
   return provider;
 }
 
-async function createProvider(user, { id, bio, categories }) {
+async function createProvider(user, { id, bio, categories, location, fullName, phoneNumber }) {
   const existing = await providerRepository.findByUserId(user.id);
   if (existing) {
-    throw new ProviderError(409, 'Provider profile already exists for this account');
+    // Registration retries are common after a dropped client response. Treat
+    // the operation as an upsert so the user can safely finish onboarding.
+    await updateProvider(existing.id, user.id, { bio, categories });
+    if (location) await setLocation(existing.id, user.id, location);
+    if (user.role !== 'provider') {
+      user.role = 'provider';
+      await user.save();
+    }
+    return getById(existing.id, user.id);
   }
 
   const categoryInputs = Array.isArray(categories) ? categories : [];
@@ -115,6 +123,11 @@ async function createProvider(user, { id, bio, categories }) {
       { transaction: t }
     );
     await providerRepository.addCategories(created.id, categoryInputs, { transaction: t });
+    if (location) {
+      await providerRepository.updateLocation(created.id, location, { transaction: t });
+    }
+    if (fullName !== undefined) user.full_name = fullName;
+    if (phoneNumber !== undefined) user.phone_number = phoneNumber || null;
     user.role = 'provider';
     await user.save({ transaction: t });
     return created;

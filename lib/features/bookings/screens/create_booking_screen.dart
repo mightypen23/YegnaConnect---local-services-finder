@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/app_providers.dart';
-import '../../../models/category.dart';
 import '../../../models/service_request.dart';
 
 class CreateBookingScreen extends ConsumerStatefulWidget {
@@ -19,7 +18,7 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController(text: 'Mexico, Addis Ababa');
   
-  String _selectedCategory = 'plumber';
+  String? _selectedCategory;
   DateTime _scheduledDate = DateTime.now().add(const Duration(hours: 3));
 
   @override
@@ -33,6 +32,8 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
   @override
   Widget build(BuildContext context) {
     final providers = ref.watch(providerSearchProvider);
+    final categories = ref.watch(categoriesProvider);
+    _selectedCategory ??= categories.isNotEmpty ? categories.first.id : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -56,7 +57,7 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.category_outlined),
                   ),
-                  items: ServiceCategory.defaultCategories.map((c) {
+                  items: categories.map((c) {
                     return DropdownMenuItem(
                       value: c.id,
                       child: Text(c.title),
@@ -116,26 +117,22 @@ class _CreateBookingScreenState extends ConsumerState<CreateBookingScreen> {
                   width: double.infinity,
                   height: 54,
                   child: FilledButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (_formKey.currentState!.validate()) {
-                        final assignedProvider = providers.first;
-                        final newRequest = ServiceRequest(
-                          id: 'req_${DateTime.now().millisecondsSinceEpoch}',
-                          customerId: 'usr_001',
-                          customerName: 'Jhon Sheferaw',
-                          providerId: assignedProvider.id,
-                          providerName: assignedProvider.fullName,
-                          categoryId: _selectedCategory,
-                          serviceTitle: _titleController.text,
-                          description: _descriptionController.text,
-                          location: _locationController.text,
-                          status: RequestStatus.pending,
-                          createdAt: DateTime.now(),
-                          scheduledAt: _scheduledDate,
-                          syncToken: 'sync_${DateTime.now().millisecondsSinceEpoch}',
+                        if (providers.isEmpty || _selectedCategory == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Services are still loading. Please try again.')));
+                          return;
+                        }
+                        final submitted = await ref.read(serviceRequestsProvider.notifier).create(
+                          categoryId: _selectedCategory!,
+                          description: '${_titleController.text}\n${_descriptionController.text}\nLocation: ${_locationController.text}',
+                          providerId: providers.first.id,
                         );
-
-                        ref.read(serviceRequestsProvider.notifier).addRequest(newRequest);
+                        if (!context.mounted) return;
+                        if (!submitted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not submit request. Please sign in and check your connection.')));
+                          return;
+                        }
 
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Service request submitted successfully!')),

@@ -122,7 +122,7 @@ class CustomerProfileScreen extends ConsumerWidget {
                   // Phone Box
                   _InfoCard(
                     icon: Icons.phone_outlined,
-                    text: user.phoneNumber,
+                    text: user.phoneNumber.isEmpty ? 'Add phone number' : user.phoneNumber,
                   ),
                   const SizedBox(height: 20),
 
@@ -197,19 +197,7 @@ class CustomerProfileScreen extends ConsumerWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {
-                            ref.read(userProvider.notifier).toggleRole();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Switched to ${!isProvider ? 'Provider' : 'Customer'} Mode'),
-                              ),
-                            );
-                            if (!isProvider) {
-                              context.go('/provider-home');
-                            } else {
-                              context.go('/home');
-                            }
-                          },
+                          onPressed: () => isProvider ? context.go('/home') : context.push('/provider-sign-up'),
                           child: Text(isProvider ? 'Switch to Customer' : 'Switch to Provider'),
                         ),
                       ),
@@ -219,7 +207,10 @@ class CustomerProfileScreen extends ConsumerWidget {
                   SizedBox(
                     width: double.infinity,
                     child: TextButton.icon(
-                      onPressed: () => context.go('/landing'),
+                      onPressed: () async {
+                        await ref.read(userProvider.notifier).logout();
+                        if (context.mounted) context.go('/landing');
+                      },
                       icon: const Icon(Icons.logout, color: AppTheme.accentRed),
                       label: const Text('Sign Out', style: TextStyle(color: AppTheme.accentRed, fontWeight: FontWeight.bold)),
                     ),

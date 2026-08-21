@@ -7,7 +7,10 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "verify-db": "node src/scripts/verify-sync.js"
+    "verify-db": "node src/scripts/verify-sync.js",
+    "repair-db": "node src/scripts/repair-schema.js",
+    "migrate-neon": "node src/scripts/migrate-to-neon.js",
+    "seed-demo": "node src/scripts/seed-demo.js"
   },
   "keywords": [],
   "author": "",
@@ -15,10 +18,13 @@
   "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.6",
+    "bcryptjs": "^3.0.2",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-validator": "^7.3.2",
+    "express-rate-limit": "^7.5.0",
     "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.0.0",
     "morgan": "^1.11.0",
     "pg": "^8.23.0",

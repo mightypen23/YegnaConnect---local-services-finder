@@ -59,7 +59,7 @@ async function creditProvider(providerId, amount, reason, referenceId, reference
     throw err;
   }
 
-  return CreditTransaction.create({
+  const transaction = await CreditTransaction.create({
     provider_id: providerId,
     amount,
     type: 'credit',
@@ -67,6 +67,7 @@ async function creditProvider(providerId, amount, reason, referenceId, reference
     reference_id: referenceId || null,
     reference_type: referenceType || null
   }, options);
+  return transaction;
 }
 
 /**

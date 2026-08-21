@@ -102,3 +102,57 @@ class AuthField extends StatelessWidget {
     );
   }
 }
+
+/// A phone number field pre-filled with the Ethiopian country code (+251).
+/// The user types the remaining 9 digits (e.g. 912345678).
+/// [controller] holds only the 9-digit part; use [fullNumber] to get the
+/// complete +251XXXXXXXXX string.
+class EthiopianPhoneField extends StatelessWidget {
+  const EthiopianPhoneField({
+    super.key,
+    required this.controller,
+    this.label = 'Phone number',
+  });
+
+  final TextEditingController controller;
+  final String label;
+
+  /// Returns the full E.164 number: +251 + whatever the user typed.
+  static String fullNumber(TextEditingController controller) =>
+      '+251${controller.text.trim()}';
+
+  /// Validates that the suffix is exactly 9 digits starting with 7 or 9
+  /// (Ethiopian Telecom mobile prefix).
+  static String? validate(String? value) {
+    final digits = value?.trim() ?? '';
+    if (digits.isEmpty) return 'Phone number is required';
+    if (!RegExp(r'^[79]\d{8}$').hasMatch(digits)) {
+      return 'Enter a valid Ethiopian number (e.g. 912345678)';
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.phone,
+      validator: validate,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: AppTheme.muted, fontSize: 14),
+        prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: AppTheme.muted),
+        prefix: const Text(
+          '+251 ',
+          style: TextStyle(
+            color: AppTheme.ink,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        hintText: '9XXXXXXXX',
+        hintStyle: const TextStyle(color: AppTheme.muted),
+      ),
+    );
+  }
+}

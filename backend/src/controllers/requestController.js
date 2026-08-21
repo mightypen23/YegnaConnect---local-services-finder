@@ -1,5 +1,17 @@
 const asyncHandler = require('../middleware/asyncHandler');
 const requestService = require('../services/requestService');
+const { ServiceProvider } = require('../models');
+
+async function providerIdForUser(req) {
+  if (req.headers['x-provider-id']) return req.headers['x-provider-id'];
+  const provider = await ServiceProvider.findOne({ where: { user_id: req.user.id }, attributes: ['id'] });
+  if (!provider) {
+    const error = new Error('Provider profile not found');
+    error.status = 404;
+    throw error;
+  }
+  return provider.id;
+}
 
 /**
  * POST /api/requests
@@ -32,7 +44,7 @@ const getProviderRequests = asyncHandler(async (req, res) => {
   const { status, page, limit } = req.query;
   // The provider record ID should come from the provider profile linked to req.user.id.
   // For simplicity we accept provider_id from a header or resolve from user.
-  const providerId = req.headers['x-provider-id'] || req.user.id;
+  const providerId = await providerIdForUser(req);
   const result = await requestService.getRequestsForProvider(providerId, {
     status,
     page: parseInt(page, 10) || 1,
@@ -55,7 +67,7 @@ const getById = asyncHandler(async (req, res) => {
  * Provider accepts a request.
  */
 const accept = asyncHandler(async (req, res) => {
-  const providerId = req.headers['x-provider-id'] || req.user.id;
+  const providerId = await providerIdForUser(req);
   const request = await requestService.acceptRequest(providerId, req.params.id);
   res.json({ data: request });
 });
@@ -65,7 +77,7 @@ const accept = asyncHandler(async (req, res) => {
  * Provider marks a request as completed.
  */
 const complete = asyncHandler(async (req, res) => {
-  const providerId = req.headers['x-provider-id'] || req.user.id;
+  const providerId = await providerIdForUser(req);
   const request = await requestService.completeRequest(providerId, req.params.id);
   res.json({ data: request });
 });

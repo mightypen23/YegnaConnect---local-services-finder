@@ -36,7 +36,15 @@ class AppTheme {
       surface: Colors.white,
       onSurface: ink,
     ),
-    fontFamily: 'Arial',
+    fontFamily: 'Roboto',
+    textTheme: const TextTheme(
+      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ink),
+      titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: ink),
+      titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: ink),
+      bodyLarge: TextStyle(fontSize: 16, color: ink),
+      bodyMedium: TextStyle(fontSize: 14, color: muted),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+    ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -46,7 +54,7 @@ class AppTheme {
         color: ink,
         fontSize: 18,
         fontWeight: FontWeight.w700,
-        fontFamily: 'Arial',
+        fontFamily: 'Roboto',
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(

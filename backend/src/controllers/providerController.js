@@ -95,7 +95,9 @@ function sanitizePublicProvider(provider) {
   return {
     id: p.id,
     full_name: p.user?.full_name ?? null,
-    phone_number: p.user?.phone_number ?? null,
+    // Public directory entries do not expose phone numbers. Contact details
+    // are returned only through an accepted request flow.
+    phone_number: null,
     bio: p.bio,
     trust_score: p.trust_score == null ? null : Number(p.trust_score),
     verification_status: p.verification_status,
@@ -121,6 +123,8 @@ function sanitizePublicProvider(provider) {
 }
 
 const createProviderValidators = [
+  body('full_name').optional().trim().notEmpty().withMessage('Full name cannot be empty'),
+  body('phone_number').optional().trim().isLength({ min: 7, max: 30 }).withMessage('Invalid phone number'),
   body('bio')
     .optional({ nullable: true })
     .trim()
@@ -142,7 +146,10 @@ const create = asyncHandler(async (req, res) => {
   if (!requireValid(req, res)) return;
   const provider = await createProvider(req.user, {
     bio: req.body.bio,
-    categories: req.body.categories
+    categories: req.body.categories,
+    location: req.body.location,
+    fullName: req.body.full_name,
+    phoneNumber: req.body.phone_number
   });
   res.status(201).json({ provider: sanitizeProvider(provider) });
 });

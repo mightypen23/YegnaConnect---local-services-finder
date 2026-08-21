@@ -1,14 +1,15 @@
-ire('crypto');
+const crypto = require('crypto');
 
 const OTP_TTL_MS = 5 * 60 * 1000;
-const PHONE_REGEX = /^\+?[1-9]\d{7,14}$/;
+// Ethiopian mobile: +251 followed by 7x or 9x then 8 more digits (e.g. +251911234567)
+const PHONE_REGEX = /^\+251[79]\d{8}$/;
 
 function generateCode() {
   return crypto.randomInt(0, 1000000).toString().padStart(6, '0');
 }
 
 function expiresAt() {
-  return new Date(Date.now() + OTP_TTL_MS); 
+  return new Date(Date.now() + OTP_TTL_MS);
 }
 
 function normalizePhone(input) {

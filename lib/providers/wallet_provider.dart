@@ -1,11 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/wallet_model.dart';
+import 'app_providers.dart';
 
 class WalletNotifier extends StateNotifier<ProviderWallet> {
-  WalletNotifier()
+  WalletNotifier(this.ref)
       : super(ProviderWallet(
           providerId: 'prov_1',
-          creditBalance: 50,
+          creditBalance: 30,
           transactions: [
             CreditTransaction(
               id: 'txn_101',
@@ -30,7 +31,18 @@ class WalletNotifier extends StateNotifier<ProviderWallet> {
               balanceAfter: 10,
             ),
           ],
-        ));
+        )) { load(); }
+
+  final Ref ref;
+
+  Future<void> load() async {
+    final token = await ref.read(secureStorageProvider).read(key: 'auth_token');
+    if (token == null) return;
+    try {
+      final balance = await ref.read(marketplaceApiProvider).getWalletBalance(token);
+      state = state.copyWith(creditBalance: balance);
+    } catch (_) {}
+  }
 
   bool deductCredits({
     required int amount,
@@ -88,5 +100,5 @@ class WalletNotifier extends StateNotifier<ProviderWallet> {
 
 final walletProvider =
     StateNotifierProvider<WalletNotifier, ProviderWallet>((ref) {
-  return WalletNotifier();
+  return WalletNotifier(ref);
 });

@@ -18,6 +18,13 @@ function asyncHandler(fn) {
       if (err instanceof UniqueConstraintError) {
         return res.status(409).json({ error: 'An account with this phone or email already exists' });
       }
+      // Bug #7 fix: properly distinguish validation errors vs uniqueness errors
+      if (err.name === 'SequelizeValidationError') {
+        return res.status(400).json({ error: err.errors?.[0]?.message || 'Validation failed' });
+      }
+      if (err.name === 'SequelizeUniqueConstraintError') {
+        return res.status(409).json({ error: 'An account with this phone or email already exists' });
+      }
       return next(err);
     });
   };
@@ -38,6 +45,7 @@ function sanitizeUser(user) {
     id: u.id,
     full_name: u.full_name,
     phone_number: u.phone_number,
+    profile_image: u.profile_image,
     email: u.email,
     role: u.role,
     is_verified: u.is_verified,
@@ -71,6 +79,27 @@ const registerValidators = [
 const loginValidators = [
   body('email').isEmail().withMessage('Invalid email address'),
   body('password').notEmpty().withMessage('Password is required')
+];
+
+// Bug #8 fix: Ethiopian mobile numbers only (+251 followed by 7x or 9x and 8 more digits)
+const ETHIOPIAN_PHONE_REGEX = /^\+251[79]\d{8}$/;
+
+const updateMeValidators = [
+  body('full_name').optional().trim().notEmpty().withMessage('Full name cannot be empty'),
+  body('phone_number')
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (value === null || value === '') return true;
+      if (!ETHIOPIAN_PHONE_REGEX.test(value)) {
+        throw new Error('Invalid Ethiopian phone number. Use format: +251911234567');
+      }
+      return true;
+    }),
+  body('profile_image')
+    .optional({ nullable: true })
+    .isString()
+    .isLength({ max: 5 * 1024 * 1024 })
+    .withMessage('Profile image is too large')
 ];
 
 const requestOtp = asyncHandler(async (req, res) => {
@@ -110,6 +139,15 @@ const me = asyncHandler(async (req, res) => {
   res.json({ user: sanitizeUser(req.user) });
 });
 
+const updateMe = asyncHandler(async (req, res) => {
+  if (!requireValid(req, res)) return;
+  if (req.body.full_name !== undefined) req.user.full_name = req.body.full_name;
+  if (req.body.phone_number !== undefined) req.user.phone_number = req.body.phone_number || null;
+  if (req.body.profile_image !== undefined) req.user.profile_image = req.body.profile_image || null;
+  await req.user.save();
+  res.json({ user: sanitizeUser(req.user) });
+});
+
 module.exports = {
   requestOtpValidators,
   verifyOtpValidators,
@@ -119,5 +157,7 @@ module.exports = {
   verifyOtp,
   register,
   login,
-  me
+  me,
+  updateMeValidators,
+  updateMe
 };

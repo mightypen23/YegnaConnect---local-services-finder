@@ -1,35 +1,82 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user_model.dart';
 import '../models/provider_model.dart';
 import '../models/category.dart';
 import '../models/service_request.dart';
-import '../models/chat_message.dart';
 import '../models/notification_model.dart';
-import '../models/review.dart';
+import '../core/network/marketplace_api.dart';
+import '../core/network/auth_api.dart';
+import '../core/network/api_client.dart';
+import '../core/constants/app_constants.dart';
 
-// Current User State Provider
+final marketplaceApiProvider = Provider<MarketplaceApi>((ref) => MarketplaceApi());
+final marketplaceLoadingProvider = StateProvider<bool>((ref) => true);
+final marketplaceErrorProvider = StateProvider<String?>((ref) => null);
+
+final authApiProvider = Provider<AuthApi>((ref) => AuthApi(ApiClient(baseUrl: AppConstants.apiBaseUrl)));
+final secureStorageProvider = Provider<FlutterSecureStorage>((ref) => const FlutterSecureStorage());
+
 class UserNotifier extends StateNotifier<UserModel> {
-  UserNotifier()
+  UserNotifier(this.ref)
       : super(const UserModel(
-          id: 'usr_001',
-          fullName: 'Jhon Sheferaw',
-          email: 'jhon.sheferaw@gmail.com',
-          phoneNumber: '+251-912345678',
-          location: 'Mexico, Addis Ababa',
+          id: 'temp_id',
+          fullName: 'Loading...',
+          email: '',
+          phoneNumber: '',
+          location: 'Addis Ababa',
           role: UserRole.customer,
-        ));
+        )) {
+    _loadUser();
+  }
+  
+  final Ref ref;
 
-  void updateProfile({
-    String? fullName,
-    String? phoneNumber,
-    String? location,
-    UserRole? role,
-  }) {
-    state = state.copyWith(
-      fullName: fullName,
-      phoneNumber: phoneNumber,
-      location: location,
-      role: role,
+  Future<void> _loadUser() async {
+    try {
+      final storage = ref.read(secureStorageProvider);
+      final token = await storage.read(key: 'auth_token');
+      if (token != null) {
+        final authApi = ref.read(authApiProvider);
+        final user = await authApi.getProfile(token);
+        state = user;
+      }
+    } catch (e) {
+      // Error loading user or token invalid
+    }
+  }
+
+  Future<void> loadFromServer() => _loadUser();
+
+  Future<void> login(String email, String password) async {
+    final authApi = ref.read(authApiProvider);
+    final response = await authApi.login(email, password);
+    final token = response['token'] as String;
+    final userJson = response['user'] as Map<String, dynamic>;
+    
+    await ref.read(secureStorageProvider).write(key: 'auth_token', value: token);
+    state = UserModel.fromJson(userJson);
+  }
+
+  Future<void> register(String fullName, String email, String password) async {
+    final authApi = ref.read(authApiProvider);
+    final response = await authApi.register(fullName, email, password);
+    final token = response['token'] as String;
+    final userJson = response['user'] as Map<String, dynamic>;
+    
+    await ref.read(secureStorageProvider).write(key: 'auth_token', value: token);
+    state = UserModel.fromJson(userJson);
+  }
+
+  Future<void> logout() async {
+    await ref.read(secureStorageProvider).delete(key: 'auth_token');
+    state = const UserModel(
+      id: 'temp_id',
+      fullName: 'Logged Out',
+      email: '',
+      phoneNumber: '',
+      location: 'Addis Ababa',
+      role: UserRole.customer,
     );
   }
 
@@ -37,86 +84,39 @@ class UserNotifier extends StateNotifier<UserModel> {
     final nextRole = state.role == UserRole.customer ? UserRole.provider : UserRole.customer;
     state = state.copyWith(role: nextRole);
   }
+
+  Future<void> updateProfile({String? fullName, String? phoneNumber, String? location, String? profileImage}) async {
+    final token = await ref.read(secureStorageProvider).read(key: 'auth_token');
+    if (token == null) return;
+    final updated = await ref.read(authApiProvider).updateProfile(token, fullName: fullName, phoneNumber: phoneNumber, profileImage: profileImage);
+    state = updated.copyWith(location: location ?? state.location);
+  }
 }
 
 final userProvider = StateNotifierProvider<UserNotifier, UserModel>((ref) {
-  return UserNotifier();
+  return UserNotifier(ref);
 });
 
 // Categories Provider
-final categoriesProvider = Provider<List<ServiceCategory>>((ref) {
-  return ServiceCategory.defaultCategories;
-});
+class CategoriesNotifier extends StateNotifier<List<ServiceCategory>> {
+  CategoriesNotifier(this.ref) : super(const []) { load(); }
+  final Ref ref;
+  Future<void> load() async {
+    try { state = await ref.read(marketplaceApiProvider).getCategories(); }
+    catch (_) { ref.read(marketplaceErrorProvider.notifier).state = 'Unable to load services. Check your connection.'; }
+  }
+}
+final categoriesProvider = StateNotifierProvider<CategoriesNotifier, List<ServiceCategory>>((ref) => CategoriesNotifier(ref));
 
-// Mock Providers List Provider
+// API-backed provider directory
 class ProviderSearchNotifier extends StateNotifier<List<ProviderModel>> {
-  ProviderSearchNotifier()
-      : super([
-          const ProviderModel(
-            id: 'prov_1',
-            userId: 'u_solomon',
-            fullName: 'Solomon Getaw',
-            phoneNumber: '+251-912345678',
-            location: 'Kality, Addis Ababa',
-            bio: 'Experienced TV & Dish technician with over 6 years fixing signal issues and home installations.',
-            rating: 4.0,
-            reviewCount: 1200,
-            skillsCount: 6,
-            completedOrders: 89,
-            totalOrders: 94,
-            services: ['Tv/Dish', 'Electrician', 'Plumber', 'Painting'],
-            isVerified: true,
-            distanceKm: 1.2,
-          ),
-          const ProviderModel(
-            id: 'prov_2',
-            userId: 'u_nardos',
-            fullName: 'Nardos Tesfaye',
-            phoneNumber: '+251-911223344',
-            location: 'Bole, Addis Ababa',
-            bio: 'Professional electrician providing safe wiring, circuit repair, and light fitting.',
-            rating: 4.8,
-            reviewCount: 450,
-            skillsCount: 4,
-            completedOrders: 142,
-            totalOrders: 145,
-            services: ['Electrician', 'Plumber'],
-            isVerified: true,
-            distanceKm: 2.5,
-          ),
-          const ProviderModel(
-            id: 'prov_3',
-            userId: 'u_abebe',
-            fullName: 'Abebe Sheferaw',
-            phoneNumber: '+251-922334455',
-            location: 'Sarbet, Addis Ababa',
-            bio: 'Expert plumber handling emergency leaks, pipe replacement, and bathroom fittings.',
-            rating: 4.5,
-            reviewCount: 310,
-            skillsCount: 5,
-            completedOrders: 78,
-            totalOrders: 82,
-            services: ['Plumber', 'Cleaning'],
-            isVerified: true,
-            distanceKm: 3.8,
-          ),
-          const ProviderModel(
-            id: 'prov_4',
-            userId: 'u_sitota',
-            fullName: 'Sitota Tesfaw',
-            phoneNumber: '+251-933445566',
-            location: 'Kazanchis, Addis Ababa',
-            bio: 'Interior and exterior painter. Clean work with top quality paints.',
-            rating: 4.2,
-            reviewCount: 190,
-            skillsCount: 3,
-            completedOrders: 54,
-            totalOrders: 58,
-            services: ['Painting', 'Cleaning'],
-            isVerified: false,
-            distanceKm: 4.1,
-          ),
-        ]);
+  ProviderSearchNotifier(this.ref) : super(const []) { load(); }
+  final Ref ref;
+  Future<void> load() async {
+    try { state = await ref.read(marketplaceApiProvider).getProviders(); }
+    catch (_) { ref.read(marketplaceErrorProvider.notifier).state = 'Unable to load providers. Check your connection.'; }
+    finally { ref.read(marketplaceLoadingProvider.notifier).state = false; }
+  }
 
   void filterProviders({
     String query = '',
@@ -131,7 +131,7 @@ class ProviderSearchNotifier extends StateNotifier<List<ProviderModel>> {
 
 final providerSearchProvider =
     StateNotifierProvider<ProviderSearchNotifier, List<ProviderModel>>((ref) {
-  return ProviderSearchNotifier();
+  return ProviderSearchNotifier(ref);
 });
 
 // Selected Category Filter State
@@ -142,16 +142,19 @@ final searchQueryProvider = StateProvider<String>((ref) => '');
 final filteredProvidersProvider = Provider<List<ProviderModel>>((ref) {
   final providers = ref.watch(providerSearchProvider);
   final category = ref.watch(selectedCategoryFilterProvider);
+  final categories = ref.watch(categoriesProvider);
   final query = ref.watch(searchQueryProvider).toLowerCase();
+  final selectedCategoryName = categories.where((item) => item.id == category).isEmpty
+      ? null
+      : categories.firstWhere((item) => item.id == category).title.toLowerCase();
 
   return providers.where((p) {
     final matchesQuery = query.isEmpty ||
         p.fullName.toLowerCase().contains(query) ||
         p.services.any((s) => s.toLowerCase().contains(query));
 
-    final matchesCategory = category == null ||
-        category.isEmpty ||
-        p.services.any((s) => s.toLowerCase() == category.toLowerCase());
+    final matchesCategory = selectedCategoryName == null ||
+        p.services.any((s) => s.toLowerCase() == selectedCategoryName);
 
     return matchesQuery && matchesCategory;
   }).toList();
@@ -159,42 +162,29 @@ final filteredProvidersProvider = Provider<List<ProviderModel>>((ref) {
 
 // Service Requests Notifier
 class ServiceRequestsNotifier extends StateNotifier<List<ServiceRequest>> {
-  ServiceRequestsNotifier()
-      : super([
-          ServiceRequest(
-            id: 'req_101',
-            customerId: 'usr_001',
-            customerName: 'Jhon Sheferaw',
-            providerId: 'prov_1',
-            providerName: 'Solomon Getaw',
-            categoryId: 'tvdish',
-            serviceTitle: 'Fix TV Signal & Antenna',
-            description: 'My dish signal is completely lost after heavy rain.',
-            location: 'Bole, back of Skylight hotel',
-            status: RequestStatus.accepted,
-            createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-            scheduledAt: DateTime.now().add(const Duration(hours: 4)),
-            isUnlockedByProvider: true,
-            syncToken: 'sync_101',
-          ),
-          ServiceRequest(
-            id: 'req_102',
-            customerId: 'usr_001',
-            customerName: 'Jhon Sheferaw',
-            providerId: 'prov_1',
-            providerName: 'Solomon Getaw',
-            categoryId: 'electrician',
-            serviceTitle: 'Main Switch Box Repair',
-            description: 'Fuse trips whenever electric stove is turned on.',
-            location: 'Mexico, Addis Ababa',
-            status: RequestStatus.pending,
-            createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-            scheduledAt: DateTime.now().add(const Duration(days: 1)),
-            isUnlockedByProvider: false,
-            unlockCreditCost: 5,
-            syncToken: 'sync_102',
-          ),
-        ]);
+  ServiceRequestsNotifier(this.ref) : super(const []) { load(); }
+  final Ref ref;
+
+  Future<void> load() async {
+    final token = await ref.read(secureStorageProvider).read(key: 'auth_token');
+    if (token == null) return;
+    try {
+      final role = ref.read(userProvider).role;
+      state = role == UserRole.provider
+          ? await ref.read(marketplaceApiProvider).getProviderRequests(token)
+          : await ref.read(marketplaceApiProvider).getMyRequests(token);
+    } catch (_) {}
+  }
+
+  Future<bool> create({required String categoryId, required String description, String? providerId}) async {
+    final token = await ref.read(secureStorageProvider).read(key: 'auth_token');
+    if (token == null) return false;
+    try {
+      final request = await ref.read(marketplaceApiProvider).createRequest(token: token, categoryId: categoryId, description: description, providerId: providerId);
+      state = [request, ...state];
+      return true;
+    } catch (_) { return false; }
+  }
 
   void addRequest(ServiceRequest request) {
     state = [request, ...state];
@@ -221,38 +211,12 @@ class ServiceRequestsNotifier extends StateNotifier<List<ServiceRequest>> {
 
 final serviceRequestsProvider =
     StateNotifierProvider<ServiceRequestsNotifier, List<ServiceRequest>>((ref) {
-  return ServiceRequestsNotifier();
+  return ServiceRequestsNotifier(ref);
 });
 
 // Notifications Notifier
 class NotificationsNotifier extends StateNotifier<List<AppNotification>> {
-  NotificationsNotifier()
-      : super([
-          AppNotification(
-            id: 'notif_1',
-            title: 'Request Accepted',
-            message: 'Solomon Getaw accepted your request for TV/Dish service.',
-            timestamp: DateTime.now().subtract(const Duration(minutes: 45)),
-            type: NotificationType.requestStatusChanged,
-            isRead: false,
-          ),
-          AppNotification(
-            id: 'notif_2',
-            title: 'New Message',
-            message: 'Solomon: Yes of course where are you?',
-            timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-            type: NotificationType.chatMessage,
-            isRead: true,
-          ),
-          AppNotification(
-            id: 'notif_3',
-            title: 'Credits Added',
-            message: '75 credits have been added to your wallet successfully.',
-            timestamp: DateTime.now().subtract(const Duration(days: 1)),
-            type: NotificationType.walletCredit,
-            isRead: true,
-          ),
-        ]);
+  NotificationsNotifier() : super(const []);
 
   void markAllRead() {
     state = state.map((n) => n.copyWith(isRead: true)).toList();

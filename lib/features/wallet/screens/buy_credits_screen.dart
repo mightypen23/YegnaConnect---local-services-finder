@@ -22,7 +22,7 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Top Up Wallet Credits'),
+        title: const Text('Top Up YC Coins'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -56,12 +56,12 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Current Credit Balance',
+                          'Current YC Coin Balance',
                           style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${wallet.creditBalance} Credits',
+                          '${wallet.creditBalance} YC Coins',
                           style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
                         ),
                       ],
@@ -73,7 +73,7 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
               const SizedBox(height: 24),
 
               const Text(
-                'Select Credit Package',
+                'Select YC Coin Package',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.ink),
               ),
               const SizedBox(height: 14),
@@ -155,7 +155,7 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                '${pkg.credits} Cr',
+                                '${pkg.credits} YC Coins',
                                 style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppTheme.green),
                               ),
                               Text(
@@ -212,7 +212,7 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
                     ),
                   ),
                   child: Text(
-                    'Pay ${_selectedPackage.priceEtb.toInt()} ETB & Get ${_selectedPackage.credits} Credits',
+                    'Pay ${_selectedPackage.priceEtb.toInt()} ETB & Get ${_selectedPackage.credits} YC Coins',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),

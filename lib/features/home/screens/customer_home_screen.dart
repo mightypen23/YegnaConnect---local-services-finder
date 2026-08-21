@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/app_providers.dart';
-import '../../../models/category.dart';
 
 class CustomerHomeScreen extends ConsumerStatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -20,6 +19,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(userProvider);
     final notifications = ref.watch(notificationsProvider);
+    final categories = ref.watch(categoriesProvider);
     final unreadCount = notifications.where((n) => !n.isRead).length;
 
     return Scaffold(
@@ -175,7 +175,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   crossAxisSpacing: 14,
                   childAspectRatio: 0.95,
                 ),
-                itemCount: 6,
+                itemCount: categories.isEmpty ? 0 : (categories.length < 5 ? categories.length : 6),
                 itemBuilder: (context, index) {
                   if (index == 5) {
                     return _ServiceItemCard(
@@ -184,7 +184,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                       onTap: () => context.go('/search'),
                     );
                   }
-                  final cat = ServiceCategory.defaultCategories[index];
+                  final cat = categories[index];
                   return _ServiceItemCard(
                     title: cat.title,
                     iconData: cat.iconData ?? Icons.handyman,

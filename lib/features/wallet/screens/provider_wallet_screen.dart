@@ -16,7 +16,7 @@ class ProviderWalletScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Provider Wallet & Credits'),
+        title: const Text('Provider Wallet & YC Coins'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -47,7 +47,7 @@ class ProviderWalletScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Available Credit Balance',
+                      'Available YC Coin Balance',
                       style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 6),
@@ -55,7 +55,7 @@ class ProviderWalletScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${wallet.creditBalance} Credits',
+                          '${wallet.creditBalance} YC Coins',
                           style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900),
                         ),
                         FilledButton.icon(
@@ -71,7 +71,7 @@ class ProviderWalletScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Credits are deducted when you unlock customer service leads.',
+                      'YC Coins are deducted when you unlock customer service leads.',
                       style: TextStyle(color: Colors.white.withValues(alpha: .9), fontSize: 12),
                     ),
                   ],

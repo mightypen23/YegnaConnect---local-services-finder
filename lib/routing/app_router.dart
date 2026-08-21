@@ -80,9 +80,9 @@ final GoRouter appRouter = GoRouter(
     ),
 
     // Sub-Routes & Provider Screens
-    GoRoute(
-      path: '/provider-home',
-      builder: (context, state) => const ProviderHomeScreen(),
+    ShellRoute(
+      builder: (context, state, child) => MainNavigationShell(child: child),
+      routes: [GoRoute(path: '/provider-home', builder: (context, state) => const ProviderHomeScreen())],
     ),
     GoRoute(
       path: '/provider-detail/:id',
