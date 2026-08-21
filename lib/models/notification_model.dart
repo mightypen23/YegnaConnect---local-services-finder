@@ -1,5 +1,8 @@
 enum NotificationType {
   requestStatusChanged,
+  requestAccepted,
+  requestCompleted,
+  requestCancelled,
   newRequest,
   chatMessage,
   verificationUpdate,
@@ -43,5 +46,42 @@ class AppNotification {
       isRead: isRead ?? this.isRead,
       targetId: targetId ?? this.targetId,
     );
+  }
+
+  factory AppNotification.fromJson(Map<String, dynamic> json) {
+    return AppNotification(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      message: json['message'] as String,
+      timestamp: DateTime.parse(json['created_at'] as String),
+      type: _parseType(json['type'] as String),
+      isRead: json['is_read'] as bool? ?? false,
+      targetId: json['reference_id'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'message': message,
+      'created_at': timestamp.toIso8601String(),
+      'type': type.name,
+      'is_read': isRead,
+      'reference_id': targetId,
+    };
+  }
+
+  static NotificationType _parseType(String value) {
+    return switch (value) {
+      'request_accepted' => NotificationType.requestAccepted,
+      'request_completed' => NotificationType.requestCompleted,
+      'request_cancelled' => NotificationType.requestCancelled,
+      'new_request' => NotificationType.newRequest,
+      'chat_message' => NotificationType.chatMessage,
+      'wallet_credit' => NotificationType.walletCredit,
+      'verification_update' => NotificationType.verificationUpdate,
+      _ => NotificationType.requestStatusChanged,
+    };
   }
 }

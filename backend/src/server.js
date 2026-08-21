@@ -41,6 +41,7 @@ app.use('/api/subscriptions', require('./routes/subscriptions'));
 app.use('/api/credits', require('./routes/credits'));
 app.use('/api/sync', require('./routes/sync'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // 404 handler
 app.use((req, res) => {

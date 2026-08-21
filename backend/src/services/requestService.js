@@ -2,6 +2,7 @@ const { sequelize } = require('../config/database');
 const { ServiceRequest, ServiceProvider, Category, User } = require('../models');
 const requestRepository = require('../repositories/RequestRepository');
 const creditService = require('./creditService');
+const notificationService = require('./notificationService');
 
 const LEAD_COST = 10; // Credits deducted when a provider accepts (meets) a customer request
 
@@ -79,7 +80,28 @@ async function acceptRequest(providerId, requestId) {
     return request;
   });
 
-  return requestRepository.findById(result.id);
+  const updatedRequest = await requestRepository.findById(result.id);
+
+  // Notify the customer that their request was accepted (best-effort)
+  try {
+    const providerProfile = await ServiceProvider.findByPk(providerId, {
+      include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }]
+    });
+    const providerName = providerProfile?.user?.full_name || 'A provider';
+    const categoryName = updatedRequest.category?.name || 'service';
+    await notificationService.createNotification({
+      userId: updatedRequest.customer_id,
+      title: 'Request Accepted',
+      message: `${providerName} accepted your request for ${categoryName}.`,
+      type: 'request_accepted',
+      referenceId: requestId,
+      referenceType: 'ServiceRequest'
+    });
+  } catch (_) {
+    // Notification failure should not block the request
+  }
+
+  return updatedRequest;
 }
 
 /**
@@ -106,7 +128,28 @@ async function completeRequest(providerId, requestId) {
   }
 
   await request.update({ status: 'completed' });
-  return requestRepository.findById(request.id);
+  const updatedRequest = await requestRepository.findById(request.id);
+
+  // Notify the customer that the request was completed (best-effort)
+  try {
+    const providerProfile = await ServiceProvider.findByPk(providerId, {
+      include: [{ model: User, as: 'user', attributes: ['id', 'full_name'] }]
+    });
+    const providerName = providerProfile?.user?.full_name || 'A provider';
+    const categoryName = updatedRequest.category?.name || 'service';
+    await notificationService.createNotification({
+      userId: updatedRequest.customer_id,
+      title: 'Request Completed',
+      message: `${providerName} completed your ${categoryName} request.`,
+      type: 'request_completed',
+      referenceId: requestId,
+      referenceType: 'ServiceRequest'
+    });
+  } catch (_) {
+    // Notification failure should not block the request
+  }
+
+  return updatedRequest;
 }
 
 /**
@@ -122,7 +165,8 @@ async function cancelRequest(userId, requestId, reason) {
   }
 
   // Only customer or assigned provider may cancel
-  if (request.customer_id !== userId && request.provider_id !== userId) {
+  const isProvider = request.provider_id !== null && request.customer_id !== userId;
+  if (request.customer_id !== userId && !isProvider) {
     const err = new Error('Not authorized to cancel this request');
     err.status = 403;
     throw err;
@@ -147,7 +191,38 @@ async function cancelRequest(userId, requestId, reason) {
     await request.update({ status: 'cancelled' }, { transaction: t });
   });
 
-  return requestRepository.findById(request.id);
+  const updatedRequest = await requestRepository.findById(request.id);
+
+  // Notify the other party about cancellation (best-effort)
+  try {
+    const isCustomerCancel = userId === request.customer_id;
+    let notifyUserId;
+    if (isCustomerCancel) {
+      // Notify the provider — resolve ServiceProvider → User.id
+      const provider = await ServiceProvider.findByPk(request.provider_id);
+      notifyUserId = provider?.user_id || null;
+    } else {
+      notifyUserId = request.customer_id;
+    }
+
+    if (notifyUserId) {
+      const cancellerUser = await User.findByPk(userId);
+      const cancellerName = cancellerUser?.full_name || 'The user';
+      const categoryName = updatedRequest.category?.name || 'service';
+      await notificationService.createNotification({
+        userId: notifyUserId,
+        title: 'Request Cancelled',
+        message: `${cancellerName} cancelled the ${categoryName} request.`,
+        type: 'request_cancelled',
+        referenceId: requestId,
+        referenceType: 'ServiceRequest'
+      });
+    }
+  } catch (_) {
+    // Notification failure should not block the request
+  }
+
+  return updatedRequest;
 }
 
 /**

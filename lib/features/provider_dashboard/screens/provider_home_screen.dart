@@ -17,6 +17,8 @@ class ProviderHomeScreen extends ConsumerWidget {
     final user = ref.watch(userProvider);
     final wallet = ref.watch(walletProvider);
     final requests = ref.watch(serviceRequestsProvider);
+    final notifications = ref.watch(notificationsProvider);
+    final unreadCount = notifications.where((n) => !n.isRead).length;
 
     return Scaffold(
       body: SafeArea(
@@ -62,7 +64,28 @@ class ProviderHomeScreen extends ConsumerWidget {
                   ),
                   IconButton(
                     onPressed: () => context.push('/notifications'),
-                    icon: const Icon(Icons.notifications_none_rounded, size: 28),
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.notifications_none_rounded, size: 28, color: AppTheme.ink),
+                        if (unreadCount > 0)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '$unreadCount',
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                   // The provider dashboard sits outside the bottom-nav shell,
                   // so account actions live here.

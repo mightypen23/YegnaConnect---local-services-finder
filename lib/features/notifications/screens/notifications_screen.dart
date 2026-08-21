@@ -5,13 +5,40 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/notification_model.dart';
 import '../../../providers/app_providers.dart';
 
-class NotificationsScreen extends ConsumerWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      ref.read(notificationsProvider.notifier).loadMore();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notifications = ref.watch(notificationsProvider);
     final dateFormat = DateFormat('MMM dd, hh:mm a');
+    final hasMore = ref.read(notificationsProvider.notifier).hasMore;
 
     return Scaffold(
       appBar: AppBar(
@@ -31,18 +58,39 @@ class NotificationsScreen extends ConsumerWidget {
                 child: Text('No notifications yet.', style: TextStyle(color: AppTheme.muted)),
               )
             : ListView.separated(
+                controller: _scrollController,
                 padding: const EdgeInsets.all(20),
-                itemCount: notifications.length,
+                itemCount: notifications.length + (hasMore ? 1 : 0),
                 separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
+                  if (index == notifications.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    );
+                  }
+
                   final notif = notifications[index];
                   IconData icon;
                   Color iconColor;
 
                   switch (notif.type) {
+                    case NotificationType.requestAccepted:
                     case NotificationType.requestStatusChanged:
                       icon = Icons.sync_rounded;
                       iconColor = AppTheme.green;
+                      break;
+                    case NotificationType.requestCompleted:
+                      icon = Icons.check_circle_outline_rounded;
+                      iconColor = AppTheme.green;
+                      break;
+                    case NotificationType.requestCancelled:
+                      icon = Icons.cancel_outlined;
+                      iconColor = Colors.red;
+                      break;
+                    case NotificationType.newRequest:
+                      icon = Icons.add_circle_outline_rounded;
+                      iconColor = AppTheme.blue;
                       break;
                     case NotificationType.chatMessage:
                       icon = Icons.chat_bubble_outline_rounded;
@@ -52,9 +100,10 @@ class NotificationsScreen extends ConsumerWidget {
                       icon = Icons.account_balance_wallet_outlined;
                       iconColor = AppTheme.greenLight;
                       break;
-                    default:
-                      icon = Icons.notifications_none_rounded;
-                      iconColor = AppTheme.ink;
+                    case NotificationType.verificationUpdate:
+                      icon = Icons.verified_outlined;
+                      iconColor = AppTheme.green;
+                      break;
                   }
 
                   return Container(

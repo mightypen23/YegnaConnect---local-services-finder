@@ -249,44 +249,71 @@ final serviceRequestsProvider =
 
 // Notifications Notifier
 class NotificationsNotifier extends StateNotifier<List<AppNotification>> {
-  NotificationsNotifier()
-      : super([
-          AppNotification(
-            id: 'notif_1',
-            title: 'Request Accepted',
-            message: 'Solomon Getaw accepted your request for TV/Dish service.',
-            timestamp: DateTime.now().subtract(const Duration(minutes: 45)),
-            type: NotificationType.requestStatusChanged,
-            isRead: false,
-          ),
-          AppNotification(
-            id: 'notif_2',
-            title: 'New Message',
-            message: 'Solomon: Yes of course where are you?',
-            timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-            type: NotificationType.chatMessage,
-            isRead: true,
-          ),
-          AppNotification(
-            id: 'notif_3',
-            title: 'Credits Added',
-            message: '75 credits have been added to your wallet successfully.',
-            timestamp: DateTime.now().subtract(const Duration(days: 1)),
-            type: NotificationType.walletCredit,
-            isRead: true,
-          ),
-        ]);
-
-  void markAllRead() {
-    state = state.map((n) => n.copyWith(isRead: true)).toList();
+  NotificationsNotifier(this._ref) : super(const []) {
+    refresh();
   }
 
-  void addNotification(AppNotification notification) {
-    state = [notification, ...state];
+  final Ref _ref;
+  int _page = 1;
+  bool _hasMore = true;
+  static const _pageSize = 20;
+
+  bool get hasMore => _hasMore;
+
+  Future<void> refresh() async {
+    _page = 1;
+    _hasMore = true;
+    final api = _ref.read(apiClientProvider);
+    try {
+      final response = await api.dio.get('/notifications', queryParameters: {'page': 1, 'limit': _pageSize});
+      final notifications = (response.data['data'] as List<dynamic>)
+          .map((json) => AppNotification.fromJson(json as Map<String, dynamic>))
+          .toList();
+      state = notifications;
+      _hasMore = notifications.length >= _pageSize;
+    } catch (_) {
+      // Keep current state on failure
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (!_hasMore) return;
+    _page++;
+    final api = _ref.read(apiClientProvider);
+    try {
+      final response = await api.dio.get('/notifications', queryParameters: {'page': _page, 'limit': _pageSize});
+      final notifications = (response.data['data'] as List<dynamic>)
+          .map((json) => AppNotification.fromJson(json as Map<String, dynamic>))
+          .toList();
+      state = [...state, ...notifications];
+      _hasMore = notifications.length >= _pageSize;
+    } catch (_) {
+      _page--; // Revert page increment on failure
+    }
+  }
+
+  Future<void> markAllRead() async {
+    final api = _ref.read(apiClientProvider);
+    try {
+      await api.dio.patch('/notifications/read-all');
+      state = state.map((n) => n.copyWith(isRead: true)).toList();
+    } catch (_) {
+      // Ignore network errors; local state unchanged
+    }
+  }
+
+  Future<void> markRead(String id) async {
+    final api = _ref.read(apiClientProvider);
+    try {
+      await api.dio.patch('/notifications/$id/read');
+      state = state.map((n) => n.id == id ? n.copyWith(isRead: true) : n).toList();
+    } catch (_) {
+      // Ignore network errors; local state unchanged
+    }
   }
 }
 
 final notificationsProvider =
     StateNotifierProvider<NotificationsNotifier, List<AppNotification>>((ref) {
-  return NotificationsNotifier();
+  return NotificationsNotifier(ref);
 });

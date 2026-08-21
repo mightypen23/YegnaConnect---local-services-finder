@@ -10,6 +10,7 @@ const SubscriptionPlan = require('./SubscriptionPlan');
 const Subscription = require('./Subscription');
 const CreditTransaction = require('./CreditTransaction');
 const SyncQueue = require('./SyncQueue');
+const Notification = require('./Notification');
 
 // Define all associations here (single source of truth)
 
@@ -65,6 +66,10 @@ ServiceProvider.hasMany(Subscription, { foreignKey: 'provider_id', as: 'subscrip
 CreditTransaction.belongsTo(ServiceProvider, { foreignKey: 'provider_id', as: 'provider' });
 ServiceProvider.hasMany(CreditTransaction, { foreignKey: 'provider_id', as: 'creditTransactions' });
 
+// Notification belongs to User
+Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
+
 module.exports = {
   User,
   ServiceProvider,
@@ -77,5 +82,6 @@ module.exports = {
   SubscriptionPlan,
   Subscription,
   CreditTransaction,
-  SyncQueue
+  SyncQueue,
+  Notification
 };
