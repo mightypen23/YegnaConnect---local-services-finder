@@ -1,4 +1,4 @@
-enum VerificationStatus { pending, approved, rejected, suspended }
+enum VerificationStatus { pending, verified, rejected }
 
 class ProviderModel {
   final String id;
@@ -37,7 +37,7 @@ class ProviderModel {
     required this.services,
     this.categoryIds = const [],
     this.isVerified = true,
-    this.verificationStatus = VerificationStatus.approved,
+    this.verificationStatus = VerificationStatus.verified,
     this.distanceKm = 1.5,
     this.latitude = 9.0192,
     this.longitude = 38.7525,
@@ -68,9 +68,10 @@ class ProviderModel {
       categoryIds: categoryIds,
       skillsCount: categories.length,
       isVerified: verification == 'verified',
-      verificationStatus: verification == 'verified'
-          ? VerificationStatus.approved
-          : VerificationStatus.values.firstWhere((s) => s.name == verification, orElse: () => VerificationStatus.pending),
+      verificationStatus: VerificationStatus.values.firstWhere(
+        (s) => s.name == verification,
+        orElse: () => VerificationStatus.pending,
+      ),
       latitude: (location?['latitude'] as num?)?.toDouble() ?? 9.0192,
       longitude: (location?['longitude'] as num?)?.toDouble() ?? 38.7525,
     );
