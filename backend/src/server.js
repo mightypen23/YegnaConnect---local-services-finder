@@ -50,8 +50,10 @@ app.use((req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
-    error: 'Something went wrong!',
+  const status = err.status || err.statusCode || 500;
+  const errorMsg = (status >= 400 && status < 500) ? err.message : 'Something went wrong!';
+  res.status(status).json({ 
+    error: errorMsg,
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
