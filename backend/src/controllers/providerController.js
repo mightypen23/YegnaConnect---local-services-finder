@@ -94,6 +94,7 @@ function sanitizePublicProvider(provider) {
     : null;
   return {
     id: p.id,
+    user_id: p.user_id,
     full_name: p.user?.full_name ?? null,
     // Public directory entries do not expose phone numbers. Contact details
     // are returned only through an accepted request flow.
