@@ -36,7 +36,7 @@ class MarketplaceApi {
   }
 
   Future<ServiceRequest> createRequest({required String token, required String categoryId, required String description, String? providerId}) async {
-    final response = await _client.dio.post('/requests', data: {'category_id': categoryId, 'description': description, if (providerId != null) 'provider_id': providerId}, options: Options(headers: {'Authorization': 'Bearer $token'}));
+    final response = await _client.dio.post('/requests', data: {'category_id': categoryId, 'description': description, 'provider_id': ?providerId}, options: Options(headers: {'Authorization': 'Bearer $token'}));
     return ServiceRequest.fromApiJson(Map<String, dynamic>.from(response.data['data'] as Map));
   }
 

@@ -16,15 +16,11 @@ class ServiceCategory {
   });
 
   factory ServiceCategory.fromJson(Map<String, dynamic> json) {
-    final icon = json['icon'] as String?;
-    final iconMap = <String, IconData>{
-      'plumbing': Icons.plumbing_rounded, 'flash_on': Icons.flash_on_rounded,
-      'tv': Icons.tv_rounded, 'cleaning_services': Icons.cleaning_services_rounded,
-      'format_paint': Icons.format_paint_rounded, 'build': Icons.build_rounded,
-      'handyman': Icons.handyman_rounded, 'school': Icons.school_rounded,
-      'content_cut': Icons.content_cut_rounded, 'local_shipping': Icons.local_shipping_rounded,
-    };
-    return ServiceCategory(id: json['id'].toString(), title: json['name'] as String? ?? 'Service', iconData: iconMap[icon]);
+    return ServiceCategory(
+      id: json['id'].toString(),
+      title: json['name'] as String? ?? 'Service',
+      iconData: _iconForKey(json['icon'] as String?),
+    );
   }
 
   static const List<ServiceCategory> defaultCategories = [
@@ -79,14 +75,6 @@ class ServiceCategory {
       iconData: Icons.local_shipping_rounded,
     ),
   ];
-
-  factory ServiceCategory.fromJson(Map<String, dynamic> json) {
-    return ServiceCategory(
-      id: json['id'] as String,
-      title: json['name'] as String,
-      iconData: _iconForKey(json['icon'] as String?),
-    );
-  }
 
   static IconData _iconForKey(String? key) {
     switch (key) {

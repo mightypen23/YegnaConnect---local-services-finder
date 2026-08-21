@@ -33,9 +33,9 @@ class AuthApi {
   Future<UserModel> updateProfile(String token, {String? fullName, String? phoneNumber, String? profileImage}) async {
     try {
       final response = await _client.dio.put('/auth/me', data: {
-        if (fullName != null) 'full_name': fullName,
-        if (phoneNumber != null) 'phone_number': phoneNumber,
-        if (profileImage != null) 'profile_image': profileImage,
+        'full_name': ?fullName,
+        'phone_number': ?phoneNumber,
+        'profile_image': ?profileImage,
       }, options: Options(headers: {'Authorization': 'Bearer $token'}));
       return UserModel.fromJson(Map<String, dynamic>.from(response.data['user'] as Map));
     } on DioException catch (error) {

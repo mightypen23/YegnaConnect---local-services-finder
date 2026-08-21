@@ -61,7 +61,7 @@ final categoriesProvider = FutureProvider<List<ServiceCategory>>((ref) async {
   try {
     final response = await api.dio.get('/categories');
     final categories = (response.data['categories'] as List<dynamic>)
-        .map((json) => ServiceCategory.fromJson(json as Map<String, dynamic>))
+        .map<ServiceCategory>((json) => ServiceCategory.fromJson(json as Map<String, dynamic>))
         .toList();
     return categories.isEmpty ? ServiceCategory.defaultCategories : categories;
   } catch (_) {
@@ -82,7 +82,7 @@ class ProviderSearchNotifier extends StateNotifier<List<ProviderModel>> {
     try {
       final response = await api.dio.get('/providers');
       final providers = (response.data['providers'] as List<dynamic>)
-          .map((json) => ProviderModel.fromJson(json as Map<String, dynamic>))
+          .map<ProviderModel>((json) => ProviderModel.fromJson(json as Map<String, dynamic>))
           .toList();
       state = providers;
     } catch (_) {

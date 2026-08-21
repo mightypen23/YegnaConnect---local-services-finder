@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/app_providers.dart';
+import '../../../providers/auth_provider.dart';
 import '../../auth/widgets/auth_widgets.dart';
 
 class ProviderProfileEditScreen extends ConsumerStatefulWidget {
@@ -238,7 +239,7 @@ class _ProviderProfileEditScreenState
                                 try {
                                   // Bug #4 fix: wire Save to real updateProfile API
                                   await ref
-                                      .read(userProvider.notifier)
+                                      .read(authProvider.notifier)
                                       .updateProfile(
                                         fullName: _nameController.text,
                                         phoneNumber: EthiopianPhoneField

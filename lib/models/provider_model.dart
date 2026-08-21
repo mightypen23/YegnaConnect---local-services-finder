@@ -45,19 +45,34 @@ class ProviderModel {
 
   factory ProviderModel.fromJson(Map<String, dynamic> json) {
     final location = json['location'] as Map<String, dynamic>?;
-    final categories = (json['categories'] as List<dynamic>? ?? [])
-        .whereType<Map<String, dynamic>>()
+    final catList = (json['categories'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>();
+    final categories = catList
         .map((c) => c['name']?.toString() ?? '')
-        .where((name) => name.isNotEmpty).toList();
+        .where((name) => name.isNotEmpty)
+        .toList();
+    final categoryIds = catList
+        .map((c) => c['id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
     final verification = json['verification_status']?.toString() ?? 'pending';
     return ProviderModel(
-      id: json['id'].toString(), userId: json['user_id']?.toString() ?? '',
-      fullName: json['full_name']?.toString() ?? 'Service Provider', phoneNumber: json['phone_number']?.toString() ?? '',
-      location: location?['address']?.toString() ?? location?['city']?.toString() ?? 'Addis Ababa', bio: json['bio']?.toString() ?? '',
-      rating: (json['trust_score'] as num?)?.toDouble() ?? 0, services: categories,
-      skillsCount: categories.length, isVerified: verification == 'verified',
-      verificationStatus: verification == 'verified' ? VerificationStatus.approved : VerificationStatus.values.firstWhere((s) => s.name == verification, orElse: () => VerificationStatus.pending),
-      latitude: (location?['latitude'] as num?)?.toDouble() ?? 9.0192, longitude: (location?['longitude'] as num?)?.toDouble() ?? 38.7525,
+      id: json['id'].toString(),
+      userId: json['user_id']?.toString() ?? json['id'].toString(),
+      fullName: json['full_name']?.toString() ?? 'Service Provider',
+      phoneNumber: json['phone_number']?.toString() ?? '',
+      location: location?['address']?.toString() ?? location?['city']?.toString() ?? 'Addis Ababa',
+      bio: json['bio']?.toString() ?? '',
+      rating: (json['trust_score'] as num?)?.toDouble() ?? 0,
+      services: categories,
+      categoryIds: categoryIds,
+      skillsCount: categories.length,
+      isVerified: verification == 'verified',
+      verificationStatus: verification == 'verified'
+          ? VerificationStatus.approved
+          : VerificationStatus.values.firstWhere((s) => s.name == verification, orElse: () => VerificationStatus.pending),
+      latitude: (location?['latitude'] as num?)?.toDouble() ?? 9.0192,
+      longitude: (location?['longitude'] as num?)?.toDouble() ?? 38.7525,
     );
   }
 
@@ -102,36 +117,6 @@ class ProviderModel {
       distanceKm: distanceKm ?? this.distanceKm,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
-    );
-  }
-
-  factory ProviderModel.fromJson(Map<String, dynamic> json) {
-    final categories = json['categories'] as List<dynamic>? ?? [];
-    final location = json['location'] as Map<String, dynamic>?;
-    final trustScore = json['trust_score'];
-
-    return ProviderModel(
-      id: json['id'] as String,
-      userId: json['id'] as String,
-      fullName: json['full_name'] as String? ?? 'Unknown provider',
-      phoneNumber: json['phone_number'] as String? ?? '',
-      location: (location?['city'] as String?) ??
-          (location?['address'] as String?) ??
-          (location?['region'] as String?) ??
-          'Location not set',
-      bio: json['bio'] as String? ?? '',
-      rating: trustScore == null ? 0.0 : (trustScore as num).toDouble(),
-      reviewCount: 0,
-      skillsCount: categories.length,
-      completedOrders: 0,
-      totalOrders: 0,
-      services: categories.map((c) => c['name'] as String).toList(),
-      categoryIds: categories.map((c) => c['id'] as String).toList(),
-      isVerified: json['verification_status'] == 'verified',
-      verificationStatus: json['verification_status'] == 'verified' ? VerificationStatus.approved : VerificationStatus.pending,
-      distanceKm: 0.0,
-      latitude: location == null ? 9.0192 : (location['latitude'] as num).toDouble(),
-      longitude: location == null ? 38.7525 : (location['longitude'] as num).toDouble(),
     );
   }
 }
