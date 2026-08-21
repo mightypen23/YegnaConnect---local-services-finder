@@ -87,6 +87,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<String?> requestOtp({required String phoneNumber, String? fullName}) async {
+    try {
+      final response = await _api.dio.post('/auth/request-otp', data: {
+        'phone_number': phoneNumber,
+        'full_name': ?fullName,
+      });
+      return response.data['dev_code'] as String?;
+    } on DioException catch (e) {
+      throw ApiClient.toApiException(e);
+    }
+  }
+
+  Future<void> verifyOtp({required String phoneNumber, required String code}) async {
+    state = const AuthState.authenticating();
+    try {
+      final response = await _api.dio.post('/auth/verify-otp', data: {
+        'phone_number': phoneNumber,
+        'code': code,
+      });
+      await _handleAuthSuccess(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final apiException = ApiClient.toApiException(e);
+      await _clearSession();
+      state = AuthState.unauthenticated(apiException.message);
+      throw apiException;
+    }
+  }
+
   // Creates the account and its provider profile as one unit. The session is
   // only published once the profile exists, so the router never sees a
   // half-built provider as a customer and routes them to the wrong home.
