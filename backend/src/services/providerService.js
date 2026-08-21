@@ -202,4 +202,4 @@ async function submitVerificationBadge(userId, { badgeType = 'identity_verified'
   });
 }
 
-module.exports = { createProvider, updateProvider, getById, getByUserId, listDirectory, listChanged, getPublicById, setLocation, submitVerificationBadge, DIRECTORY_INCLUDE, ProviderError };
+module.exports = { createProvider, updateProvider, getById, getByUserId, listDirectory, listChanged, getPublicById, setLocation, submitVerificationBadge, DIRECTORY_INCLUDE, ProviderError };}
