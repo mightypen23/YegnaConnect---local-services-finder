@@ -105,7 +105,7 @@ async function getPublicById(id) {
   return provider;
 }
 
-async function createProvider(user, { id, bio, categories }) {
+async function createProvider(user, { id, bio, categories, location, fullName, phoneNumber }) {
   const existing = await providerRepository.findByUserId(user.id);
   if (existing) {
     throw new ProviderError(409, 'Provider profile already exists for this account');
@@ -119,12 +119,20 @@ async function createProvider(user, { id, bio, categories }) {
       { transaction: t }
     );
     await providerRepository.addCategories(created.id, categoryInputs, { transaction: t });
+    if (location) {
+      const locData = typeof location === 'string'
+        ? { address: location, city: location }
+        : location;
+      await providerRepository.updateLocation(created.id, locData, { transaction: t });
+    }
     await creditService.creditProvider(
       created.id, SIGNUP_CREDIT_BONUS,
       'Signup bonus', null, null,
       { transaction: t }
     );
     user.role = 'provider';
+    if (fullName) user.full_name = fullName;
+    if (phoneNumber) user.phone_number = phoneNumber;
     await user.save({ transaction: t });
     return created;
   });
