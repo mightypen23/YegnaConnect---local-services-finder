@@ -7,6 +7,7 @@ const {
   listDirectory,
   updateProvider,
   setLocation,
+  submitVerificationBadge,
   ProviderError
 } = require('../services/providerService');
 
@@ -241,9 +242,18 @@ const setLocationHandler = asyncHandler(async (req, res) => {
     accuracy: req.body.accuracy ?? null,
     address: req.body.address ?? null,
     city: req.body.city ?? null,
-    region: req.body.region ?? null
-  });
   res.json({ provider: sanitizeProvider(provider) });
+});
+
+const submitVerificationHandler = asyncHandler(async (req, res) => {
+  const { badge_type, id_number, evidence, evidence_url } = req.body;
+  const evidenceText = evidence || (id_number ? `National ID / Kebele Card Number: ${id_number}` : 'Identity verification submitted');
+  const badge = await submitVerificationBadge(req.user.id, {
+    badgeType: badge_type || 'identity_verified',
+    evidence: evidenceText,
+    evidenceUrl: evidence_url
+  });
+  res.status(201).json({ badge });
 });
 
 module.exports = {
@@ -258,5 +268,6 @@ module.exports = {
   list,
   getMe,
   update,
-  setLocationHandler
+  setLocationHandler,
+  submitVerificationHandler
 };
