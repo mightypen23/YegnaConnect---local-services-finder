@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../providers/app_providers.dart';
 
-class FilterBottomSheet extends StatefulWidget {
+class FilterBottomSheet extends ConsumerStatefulWidget {
   const FilterBottomSheet({super.key});
 
   @override
-  State<FilterBottomSheet> createState() => _FilterBottomSheetState();
+  ConsumerState<FilterBottomSheet> createState() => _FilterBottomSheetState();
 }
 
-class _FilterBottomSheetState extends State<FilterBottomSheet> {
-  double _distanceKm = 15;
-  double _minRating = 4.0;
-  bool _verifiedOnly = false;
+class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
+  late double _distanceKm;
+  late double _minRating;
+  late bool _verifiedOnly;
+
+  @override
+  void initState() {
+    super.initState();
+    _distanceKm = ref.read(maxDistanceProvider);
+    _minRating = ref.read(minRatingProvider);
+    _verifiedOnly = ref.read(verifiedOnlyProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,12 +87,12 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           ),
           const SizedBox(height: 8),
           Row(
-            children: [3.0, 4.0, 4.5].map((rating) {
+            children: [0.0, 3.0, 4.0, 4.5].map((rating) {
               final isSelected = _minRating == rating;
               return Padding(
                 padding: const EdgeInsets.only(right: 10),
                 child: ChoiceChip(
-                  label: Text('$rating★ & up'),
+                  label: Text(rating == 0 ? 'Any' : '$rating★ & up'),
                   selected: isSelected,
                   selectedColor: AppTheme.green,
                   labelStyle: TextStyle(
@@ -110,7 +120,12 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             width: double.infinity,
             height: 50,
             child: FilledButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                ref.read(maxDistanceProvider.notifier).state = _distanceKm;
+                ref.read(minRatingProvider.notifier).state = _minRating;
+                ref.read(verifiedOnlyProvider.notifier).state = _verifiedOnly;
+                Navigator.pop(context);
+              },
               child: const Text('Apply Filters'),
             ),
           ),
