@@ -62,7 +62,7 @@ class ServiceRequest {
     required this.createdAt,
     required this.scheduledAt,
     this.isUnlockedByProvider = false,
-    this.unlockCreditCost = 5,
+    this.unlockCreditCost = 10,
     required this.syncToken,
     this.isSyncedOffline = true,
   });
@@ -152,7 +152,7 @@ class ServiceRequest {
       createdAt: DateTime.parse(json['createdAt'] as String),
       scheduledAt: DateTime.parse(json['scheduledAt'] as String),
       isUnlockedByProvider: (json['isUnlockedByProvider'] == 1 || json['isUnlockedByProvider'] == true),
-      unlockCreditCost: json['unlockCreditCost'] as int? ?? 5,
+      unlockCreditCost: json['unlockCreditCost'] as int? ?? 10,
       syncToken: json['syncToken'] as String? ?? json['id'] as String,
       isSyncedOffline: (json['isSyncedOffline'] == 1 || json['isSyncedOffline'] == true),
     );
