@@ -165,12 +165,25 @@ async function cancelRequest(userId, requestId, reason) {
   }
 
   // Only customer or assigned provider may cancel
-  const isProvider = request.provider_id !== null && request.customer_id !== userId;
-  if (request.customer_id !== userId && !isProvider) {
-    const err = new Error('Not authorized to cancel this request');
-    err.status = 403;
-    throw err;
+// Only customer or assigned provider may cancel
+let isAuthorized = request.customer_id === userId;
+
+if (!isAuthorized && request.provider_id) {
+  const provider = await ServiceProvider.findOne({
+    where: { user_id: userId, id: request.provider_id },
+    attributes: ['id']
+  });
+
+  if (provider) {
+    isAuthorized = true;
   }
+}
+
+if (!isAuthorized) {
+  const err = new Error('Not authorized to cancel this request');
+  err.status = 403;
+  throw err;
+}
 
   if (['completed', 'cancelled', 'failed'].includes(request.status)) {
     const err = new Error(`Cannot cancel a request with status "${request.status}"`);

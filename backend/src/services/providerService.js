@@ -105,7 +105,7 @@ async function getPublicById(id) {
   return provider;
 }
 
-async function createProvider(user, { id, bio, categories }) {
+async function createProvider(user, { id, bio, categories, location, fullName, phoneNumber }) {
   const existing = await providerRepository.findByUserId(user.id);
   if (existing) {
     throw new ProviderError(409, 'Provider profile already exists for this account');
@@ -119,12 +119,26 @@ async function createProvider(user, { id, bio, categories }) {
       { transaction: t }
     );
     await providerRepository.addCategories(created.id, categoryInputs, { transaction: t });
+    if (location) {
+      const locData = typeof location === 'string'
+        ? { address: location, city: location, region: 'Addis Ababa', latitude: 9.0192, longitude: 38.7525 }
+        : {
+            address: location.address || location.city || 'Addis Ababa',
+            city: location.city || location.address || 'Addis Ababa',
+            region: location.region || 'Addis Ababa',
+            latitude: location.latitude ?? 9.0192,
+            longitude: location.longitude ?? 38.7525
+          };
+      await providerRepository.updateLocation(created.id, locData, { transaction: t });
+    }
     await creditService.creditProvider(
       created.id, SIGNUP_CREDIT_BONUS,
       'Signup bonus', null, null,
       { transaction: t }
     );
     user.role = 'provider';
+    if (fullName) user.full_name = fullName;
+    if (phoneNumber) user.phone_number = phoneNumber;
     await user.save({ transaction: t });
     return created;
   });
@@ -164,11 +178,28 @@ async function setLocation(id, userId, location) {
     throw new ProviderError(403, 'You do not have access to this provider profile');
   }
 
-  await sequelize.transaction(async (t) => {
-    await providerRepository.updateLocation(id, location, { transaction: t });
+async function submitVerificationBadge(userId, { badgeType = 'identity_verified', evidence, evidenceUrl }) {
+  const provider = await providerRepository.findByUserId(userId);
+  if (!provider) {
+    throw new ProviderError(404, 'Provider profile not found');
+  }
+  const existing = await VerificationBadge.findOne({
+    where: { provider_id: provider.id, badge_type: badgeType }
   });
-
-  return getById(id, userId);
+  if (existing) {
+    existing.evidence = evidence;
+    if (evidenceUrl) existing.evidence_url = evidenceUrl;
+    existing.status = 'pending';
+    await existing.save();
+    return existing;
+  }
+  return VerificationBadge.create({
+    provider_id: provider.id,
+    badge_type: badgeType,
+    evidence,
+    evidence_url: evidenceUrl,
+    status: 'pending'
+  });
 }
 
-module.exports = { createProvider, updateProvider, getById, getByUserId, listDirectory, listChanged, getPublicById, setLocation, DIRECTORY_INCLUDE, ProviderError };
+module.exports = { createProvider, updateProvider, getById, getByUserId, listDirectory, listChanged, getPublicById, setLocation, submitVerificationBadge, DIRECTORY_INCLUDE, ProviderError };

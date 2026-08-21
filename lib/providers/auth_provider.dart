@@ -108,12 +108,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
       });
       await _tokenStorage.saveToken(registration.data['token'] as String);
 
-      await _api.dio.post('/providers', data: {
+      final providerRes = await _api.dio.post('/providers', data: {
         'bio': bio,
+        'full_name': fullName,
+        'phone_number': phoneNumber,
+        'location': location,
         'categories': [
           {'id': categoryId},
         ],
       });
+
+      final providerData = providerRes.data != null ? providerRes.data['provider'] as Map<String, dynamic>? : null;
+      final providerId = providerData?['id']?.toString();
+
+      if (providerId != null) {
+        await _api.dio.put('/providers/$providerId/location', data: {
+          'address': location,
+          'city': location,
+          'region': 'Addis Ababa',
+          'latitude': 9.0192,
+          'longitude': 38.7525,
+        });
+      }
+
       await _api.dio.put('/auth/me', data: {
         'phone_number': phoneNumber,
         'location': location,
