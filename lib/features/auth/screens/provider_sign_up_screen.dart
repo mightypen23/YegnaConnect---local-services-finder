@@ -34,6 +34,14 @@ class _ProviderSignUpScreenState extends ConsumerState<ProviderSignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final categories = ref.watch(categoriesProvider);
+    final categoriesLoading = ref.watch(categoriesLoadingProvider);
+    final categoriesError = ref.watch(categoriesErrorProvider);
+
+    if (_selectedCategory != null && !categories.any((item) => item.id == _selectedCategory)) {
+      _selectedCategory = null;
+    }
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -87,36 +95,37 @@ class _ProviderSignUpScreenState extends ConsumerState<ProviderSignUpScreen> {
                 const SizedBox(height: 14),
 
                 // Service Offered Dropdown Field (Required)
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedCategory,
-                  isExpanded: true,
-                  menuMaxHeight: 320,
-                  decoration: const InputDecoration(
-                    labelText: 'Service you provide *',
-                    labelStyle: TextStyle(color: AppTheme.muted, fontSize: 14),
-                    prefixIcon: Icon(Icons.handyman_outlined, size: 20, color: AppTheme.muted),
-                  ),
-                  items: ref.watch(categoriesProvider).map((c) {
-                    return DropdownMenuItem(
+                if (categoriesLoading)
+                  const InputDecorator(
+                    decoration: InputDecoration(labelText: 'Loading service categories…', prefixIcon: Icon(Icons.handyman_outlined)),
+                    child: LinearProgressIndicator(),
+                  )
+                else if (categoriesError != null || categories.isEmpty)
+                  InputDecorator(
+                    decoration: const InputDecoration(labelText: 'Service categories unavailable', prefixIcon: Icon(Icons.error_outline)),
+                    child: Row(children: [
+                      Expanded(child: Text(categoriesError ?? 'No service categories found')),
+                      TextButton(onPressed: () => ref.read(categoriesProvider.notifier).load(), child: const Text('Retry')),
+                    ]),
+                  )
+                else
+                  DropdownButtonFormField<String>(
+                    key: ValueKey('provider-category-${categories.length}'),
+                    value: _selectedCategory,
+                    isExpanded: true,
+                    menuMaxHeight: 320,
+                    decoration: const InputDecoration(
+                      labelText: 'Service you provide *',
+                      labelStyle: TextStyle(color: AppTheme.muted, fontSize: 14),
+                      prefixIcon: Icon(Icons.handyman_outlined, size: 20, color: AppTheme.muted),
+                    ),
+                    items: categories.map((c) => DropdownMenuItem<String>(
                       value: c.id,
-                      child: Text(
-                        c.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: AppTheme.ink, fontSize: 14),
-                      ),
-                    );
-                  }).toList(),
-                  validator: (val) {
-                    if (val == null || val.isEmpty) {
-                      return 'Please select a service category';
-                    }
-                    return null;
-                  },
-                  onChanged: (val) {
-                    setState(() => _selectedCategory = val);
-                  },
-                ),
+                      child: Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    )).toList(),
+                    validator: (val) => val == null ? 'Please select a service category' : null,
+                    onChanged: (val) => setState(() => _selectedCategory = val),
+                  ),
                 const SizedBox(height: 14),
 
                 // Location / City Field (Required)

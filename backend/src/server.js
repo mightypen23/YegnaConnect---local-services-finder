@@ -11,11 +11,17 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(helmet());
-app.use(cors({
-  // Flutter web runs on a development port different from the API port.
-  // Restrict origins in production, but keep local development usable.
-  origin: process.env.NODE_ENV === 'production' ? (process.env.CORS_ORIGIN || false) : true
-}));
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production'
+    ? (process.env.CORS_ORIGIN || false)
+    : true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Provider-Id'],
+  credentials: false,
+  optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -75,6 +81,7 @@ const startServer = async () => {
     });
   } catch (error) {
     console.error('Unable to start server:', error);
+    console.error('Check that Neon is reachable and backend/.env contains a valid NEON_DATABASE_URL.');
     process.exit(1);
   }
 };

@@ -13,6 +13,8 @@ import '../core/constants/app_constants.dart';
 final marketplaceApiProvider = Provider<MarketplaceApi>((ref) => MarketplaceApi());
 final marketplaceLoadingProvider = StateProvider<bool>((ref) => true);
 final marketplaceErrorProvider = StateProvider<String?>((ref) => null);
+final categoriesLoadingProvider = StateProvider<bool>((ref) => true);
+final categoriesErrorProvider = StateProvider<String?>((ref) => null);
 
 final authApiProvider = Provider<AuthApi>((ref) => AuthApi(ApiClient(baseUrl: AppConstants.apiBaseUrl)));
 final secureStorageProvider = Provider<FlutterSecureStorage>((ref) => const FlutterSecureStorage());
@@ -102,8 +104,15 @@ class CategoriesNotifier extends StateNotifier<List<ServiceCategory>> {
   CategoriesNotifier(this.ref) : super(const []) { load(); }
   final Ref ref;
   Future<void> load() async {
-    try { state = await ref.read(marketplaceApiProvider).getCategories(); }
-    catch (_) { ref.read(marketplaceErrorProvider.notifier).state = 'Unable to load services. Check your connection.'; }
+    ref.read(categoriesLoadingProvider.notifier).state = true;
+    ref.read(categoriesErrorProvider.notifier).state = null;
+    try {
+      state = await ref.read(marketplaceApiProvider).getCategories();
+    } catch (_) {
+      ref.read(categoriesErrorProvider.notifier).state = 'Unable to load service categories.';
+    } finally {
+      ref.read(categoriesLoadingProvider.notifier).state = false;
+    }
   }
 }
 final categoriesProvider = StateNotifierProvider<CategoriesNotifier, List<ServiceCategory>>((ref) => CategoriesNotifier(ref));
