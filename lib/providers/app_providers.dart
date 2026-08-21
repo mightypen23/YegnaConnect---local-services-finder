@@ -89,16 +89,6 @@ class ProviderSearchNotifier extends StateNotifier<List<ProviderModel>> {
       // Keep the empty state; screens already handle an empty provider list.
     }
   }
-
-  void filterProviders({
-    String query = '',
-    String? categoryId,
-    double maxDistance = 50.0,
-    double minRating = 0.0,
-    bool verifiedOnly = false,
-  }) {
-    // Search filtering helper
-  }
 }
 
 final providerSearchProvider =
@@ -106,15 +96,21 @@ final providerSearchProvider =
   return ProviderSearchNotifier(ref);
 });
 
-// Selected Category Filter State
+// Filter State
 final selectedCategoryFilterProvider = StateProvider<String?>((ref) => null);
 final searchQueryProvider = StateProvider<String>((ref) => '');
+final maxDistanceProvider = StateProvider<double>((ref) => 50.0);
+final minRatingProvider = StateProvider<double>((ref) => 0.0);
+final verifiedOnlyProvider = StateProvider<bool>((ref) => false);
 
 // Filtered Providers Provider
 final filteredProvidersProvider = Provider<List<ProviderModel>>((ref) {
   final providers = ref.watch(providerSearchProvider);
   final category = ref.watch(selectedCategoryFilterProvider);
   final query = ref.watch(searchQueryProvider).toLowerCase();
+  final maxDistance = ref.watch(maxDistanceProvider);
+  final minRating = ref.watch(minRatingProvider);
+  final verifiedOnly = ref.watch(verifiedOnlyProvider);
 
   return providers.where((p) {
     final matchesQuery = query.isEmpty ||
@@ -125,7 +121,11 @@ final filteredProvidersProvider = Provider<List<ProviderModel>>((ref) {
         category.isEmpty ||
         p.services.any((s) => s.toLowerCase() == category.toLowerCase());
 
-    return matchesQuery && matchesCategory;
+    final matchesDistance = p.distanceKm <= maxDistance;
+    final matchesRating = p.rating >= minRating;
+    final matchesVerified = !verifiedOnly || p.isVerified;
+
+    return matchesQuery && matchesCategory && matchesDistance && matchesRating && matchesVerified;
   }).toList();
 });
 
