@@ -6,6 +6,7 @@ const {
   register: registerService,
   login: loginService,
   issueToken,
+  updateProfile: updateProfileService,
   AuthError
 } = require('../services/authService');
 
@@ -39,6 +40,7 @@ function sanitizeUser(user) {
     full_name: u.full_name,
     phone_number: u.phone_number,
     email: u.email,
+    location: u.location,
     role: u.role,
     is_verified: u.is_verified,
     created_at: u.created_at,
@@ -110,14 +112,29 @@ const me = asyncHandler(async (req, res) => {
   res.json({ user: sanitizeUser(req.user) });
 });
 
+const updateProfileValidators = [
+  body('full_name').optional({ checkFalsy: true }).trim().notEmpty().withMessage('Full name cannot be empty'),
+  body('phone_number').optional({ checkFalsy: true }).trim().notEmpty().withMessage('Phone number cannot be empty'),
+  body('location').optional({ checkFalsy: true }).trim()
+];
+
+const updateMe = asyncHandler(async (req, res) => {
+  if (!requireValid(req, res)) return;
+  const { full_name, phone_number, location } = req.body;
+  const user = await updateProfileService(req.user.id, { full_name, phone_number, location });
+  res.json({ user: sanitizeUser(user) });
+});
+
 module.exports = {
   requestOtpValidators,
   verifyOtpValidators,
   registerValidators,
   loginValidators,
+  updateProfileValidators,
   requestOtp,
   verifyOtp,
   register,
   login,
-  me
+  me,
+  updateMe
 };

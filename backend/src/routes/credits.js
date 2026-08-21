@@ -1,5 +1,5 @@
 const express = require('express');
-const { query } = require('express-validator');
+const { query, body } = require('express-validator');
 const validate = require('../middleware/validate');
 const { authenticate, requireRole } = require('../middleware/auth');
 const creditController = require('../controllers/creditController');
@@ -26,5 +26,12 @@ router.get('/transactions',
 
 // GET /api/credits/summary — Credit balance summary
 router.get('/summary', creditController.getSummary);
+
+// POST /api/credits/purchase — Buy credit top-up packages (50 birr = 100 credits)
+router.post('/purchase',
+  [body('packages').optional().isInt({ min: 1 }).withMessage('packages must be a positive integer')],
+  validate,
+  creditController.purchaseCredits
+);
 
 module.exports = router;

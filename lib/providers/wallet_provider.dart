@@ -1,92 +1,79 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/network/api_client.dart';
 import '../models/wallet_model.dart';
+import 'network_providers.dart';
 
 class WalletNotifier extends StateNotifier<ProviderWallet> {
-  WalletNotifier()
-      : super(ProviderWallet(
-          providerId: 'prov_1',
-          creditBalance: 50,
-          transactions: [
-            CreditTransaction(
-              id: 'txn_101',
-              type: CreditTransactionType.purchase,
-              creditsAmount: 50,
-              title: 'Starter Pack Purchased',
-              description: 'Purchased 50 credits via Telebirr',
-              timestamp: DateTime.now().subtract(const Duration(days: 2)),
-              referenceNumber: 'TB-8941257',
-              paymentMethod: 'Telebirr',
-              balanceAfter: 50,
-            ),
-            CreditTransaction(
-              id: 'txn_100',
-              type: CreditTransactionType.bonus,
-              creditsAmount: 10,
-              title: 'Welcome Bonus',
-              description: 'Bonus credits for completing provider registration',
-              timestamp: DateTime.now().subtract(const Duration(days: 5)),
-              referenceNumber: 'BONUS-REG',
-              paymentMethod: 'System',
-              balanceAfter: 10,
-            ),
-          ],
-        ));
-
-  bool deductCredits({
-    required int amount,
-    required String requestTitle,
-    required String requestId,
-  }) {
-    if (state.creditBalance < amount) {
-      return false; // Insufficient balance
-    }
-
-    final newBalance = state.creditBalance - amount;
-    final newTransaction = CreditTransaction(
-      id: 'txn_${DateTime.now().millisecondsSinceEpoch}',
-      type: CreditTransactionType.spend,
-      creditsAmount: -amount,
-      title: 'Unlocked Request Lead',
-      description: 'Unlocked customer request: $requestTitle',
-      timestamp: DateTime.now(),
-      referenceNumber: 'REQ-$requestId',
-      paymentMethod: 'Wallet Credit',
-      balanceAfter: newBalance,
-    );
-
-    state = state.copyWith(
-      creditBalance: newBalance,
-      transactions: [newTransaction, ...state.transactions],
-    );
-
-    return true;
+  WalletNotifier(this._ref)
+      : super(const ProviderWallet(providerId: '', creditBalance: 0, transactions: [])) {
+    refresh();
   }
 
-  void topUpCredits({
-    required CreditPackage package,
-    required String paymentMethod,
-  }) {
-    final newBalance = state.creditBalance + package.credits;
-    final newTransaction = CreditTransaction(
-      id: 'txn_${DateTime.now().millisecondsSinceEpoch}',
-      type: CreditTransactionType.purchase,
-      creditsAmount: package.credits,
-      title: '${package.name} Purchased',
-      description: 'Added ${package.credits} credits via $paymentMethod (${package.priceEtb.toInt()} ETB)',
-      timestamp: DateTime.now(),
-      referenceNumber: 'TXN-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}',
-      paymentMethod: paymentMethod,
-      balanceAfter: newBalance,
-    );
+  final Ref _ref;
 
-    state = state.copyWith(
-      creditBalance: newBalance,
-      transactions: [newTransaction, ...state.transactions],
+  Future<void> refresh() async {
+    final api = _ref.read(apiClientProvider);
+    try {
+      final balanceResponse = await api.dio.get('/credits/balance');
+      final balanceData = balanceResponse.data['data'] as Map<String, dynamic>;
+      final balance = balanceData['balance'] as int;
+      final providerId = balanceData['providerId'] as String? ?? '';
+
+      final txResponse = await api.dio.get('/credits/transactions');
+      final rows = (txResponse.data['data'] as List<dynamic>).cast<Map<String, dynamic>>();
+
+      // Backend transactions come newest-first with no per-row running balance,
+      // so reconstruct it locally from the current balance backwards.
+      var running = balance;
+      final transactions = <CreditTransaction>[];
+      for (final row in rows) {
+        final signedAmount = row['type'] == 'debit' ? -(row['amount'] as int) : (row['amount'] as int);
+        transactions.add(_fromApiRow(row, balanceAfter: running));
+        running -= signedAmount;
+      }
+
+      state = ProviderWallet(providerId: providerId, creditBalance: balance, transactions: transactions);
+    } catch (_) {
+      // Keep the current state; wallet screens already handle an empty/stale state.
+    }
+  }
+
+  CreditTransaction _fromApiRow(Map<String, dynamic> row, {required int balanceAfter}) {
+    final reason = row['reason'] as String? ?? '';
+    final amount = row['amount'] as int;
+    final isDebit = row['type'] == 'debit';
+    final type = isDebit
+        ? CreditTransactionType.spend
+        : (reason.startsWith('Credit purchase') ? CreditTransactionType.purchase : CreditTransactionType.bonus);
+
+    return CreditTransaction(
+      id: row['id'] as String,
+      type: type,
+      creditsAmount: isDebit ? -amount : amount,
+      title: reason.isEmpty ? (isDebit ? 'Credit used' : 'Credit added') : reason,
+      description: reason,
+      timestamp: DateTime.parse(row['created_at'] as String),
+      referenceNumber: row['reference_id'] as String? ?? row['id'] as String,
+      paymentMethod: isDebit ? 'Wallet Credit' : 'System',
+      balanceAfter: balanceAfter,
     );
+  }
+
+  // Buys a credit top-up package (backend enforces 50 birr = 100 credits per package).
+  Future<void> purchaseCredits(CreditPackage package) async {
+    final api = _ref.read(apiClientProvider);
+    final packages = (package.credits / 100).round();
+    try {
+      await api.dio.post('/credits/purchase', data: {'packages': packages});
+      await refresh();
+    } on DioException catch (e) {
+      throw ApiClient.toApiException(e);
+    }
   }
 }
 
-final walletProvider =
-    StateNotifierProvider<WalletNotifier, ProviderWallet>((ref) {
-  return WalletNotifier();
+final walletProvider = StateNotifierProvider<WalletNotifier, ProviderWallet>((ref) {
+  return WalletNotifier(ref);
 });
+

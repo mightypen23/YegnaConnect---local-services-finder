@@ -21,6 +21,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     final user = ref.watch(userProvider);
     final notifications = ref.watch(notificationsProvider);
     final unreadCount = notifications.where((n) => !n.isRead).length;
+    final categories = ref.watch(categoriesProvider).value ?? const <ServiceCategory>[];
+    final displayCategories = categories.take(5).toList();
 
     return Scaffold(
       body: SafeArea(
@@ -175,21 +177,21 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   crossAxisSpacing: 14,
                   childAspectRatio: 0.95,
                 ),
-                itemCount: 6,
+                itemCount: displayCategories.length + 1,
                 itemBuilder: (context, index) {
-                  if (index == 5) {
+                  if (index == displayCategories.length) {
                     return _ServiceItemCard(
                       title: 'more...',
                       iconData: Icons.grid_view_rounded,
                       onTap: () => context.go('/search'),
                     );
                   }
-                  final cat = ServiceCategory.defaultCategories[index];
+                  final cat = displayCategories[index];
                   return _ServiceItemCard(
                     title: cat.title,
                     iconData: cat.iconData ?? Icons.handyman,
                     onTap: () {
-                      ref.read(selectedCategoryFilterProvider.notifier).state = cat.id;
+                      ref.read(selectedCategoryFilterProvider.notifier).state = cat.title;
                       context.go('/search');
                     },
                   );

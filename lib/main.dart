@@ -14,15 +14,16 @@ void main() {
   );
 }
 
-class YegnaConnectApp extends StatelessWidget {
+class YegnaConnectApp extends ConsumerWidget {
   const YegnaConnectApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
     return MaterialApp.router(
       title: AppConstants.appName,
       theme: AppTheme.lightTheme,
-      routerConfig: appRouter,
+      routerConfig: router,
       debugShowCheckedModeBanner: false,
     );
   }

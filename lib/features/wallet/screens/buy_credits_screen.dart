@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/network/api_client.dart';
 import '../../../models/wallet_model.dart';
 import '../../../providers/wallet_provider.dart';
 
@@ -79,12 +80,23 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
               const SizedBox(height: 14),
 
               // Credit Packages List
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: CreditPackage.defaultPackages.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
+              RadioGroup<String>(
+                groupValue: _selectedPackage.id,
+                onChanged: (packageId) {
+                  if (packageId != null) {
+                    setState(() {
+                      _selectedPackage = CreditPackage.defaultPackages.firstWhere(
+                        (package) => package.id == packageId,
+                      );
+                    });
+                  }
+                },
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: CreditPackage.defaultPackages.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
                   final pkg = CreditPackage.defaultPackages[index];
                   final isSelected = _selectedPackage.id == pkg.id;
 
@@ -112,9 +124,7 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
                         children: [
                           Radio<String>(
                             value: pkg.id,
-                            groupValue: _selectedPackage.id,
                             activeColor: AppTheme.green,
-                            onChanged: (_) => setState(() => _selectedPackage = pkg),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -168,7 +178,8 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
                       ),
                     ),
                   );
-                },
+                  },
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -224,7 +235,7 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
     );
   }
 
-  void _processMockPayment(BuildContext context, WidgetRef ref) {
+  Future<void> _processMockPayment(BuildContext context, WidgetRef ref) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -233,49 +244,51 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
       ),
     );
 
-    Future.delayed(const Duration(seconds: 1), () {
+    try {
+      await ref.read(walletProvider.notifier).purchaseCredits(_selectedPackage);
+    } on ApiException catch (e) {
       if (!context.mounted) return;
       Navigator.pop(context); // Close loader
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    }
 
-      ref.read(walletProvider.notifier).topUpCredits(
-            package: _selectedPackage,
-            paymentMethod: _selectedPaymentMethod,
-          );
+    if (!context.mounted) return;
+    Navigator.pop(context); // Close loader
 
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.check_circle_rounded, color: AppTheme.green, size: 60),
-              const SizedBox(height: 14),
-              const Text(
-                'Top Up Successful!',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.green),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle_rounded, color: AppTheme.green, size: 60),
+            const SizedBox(height: 14),
+            const Text(
+              'Top Up Successful!',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.green),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${_selectedPackage.credits} credits have been added to your wallet via $_selectedPaymentMethod.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppTheme.muted, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.pop();
+                },
+                child: const Text('Back to Wallet'),
               ),
-              const SizedBox(height: 8),
-              Text(
-                '${_selectedPackage.credits} credits have been added to your wallet via $_selectedPaymentMethod.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppTheme.muted, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    context.pop();
-                  },
-                  child: const Text('Back to Wallet'),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
-    });
+      ),
+    );
   }
 }

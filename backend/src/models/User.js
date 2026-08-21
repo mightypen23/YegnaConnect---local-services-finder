@@ -25,6 +25,10 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('customer', 'provider', 'admin'),
     defaultValue: 'customer'
   },
+  location: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   latitude: {
     type: DataTypes.DECIMAL(10, 8),
     allowNull: true
@@ -48,6 +52,10 @@ const User = sequelize.define('User', {
   verification_code_expires: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  token_version: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
   }
 }, {
   tableName: 'users',

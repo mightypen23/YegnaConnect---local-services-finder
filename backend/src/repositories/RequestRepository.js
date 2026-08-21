@@ -4,7 +4,12 @@ const { Op } = require('sequelize');
 
 const DEFAULT_INCLUDES = [
   { model: User, as: 'customer', attributes: ['id', 'full_name', 'phone_number', 'email'] },
-  { model: ServiceProvider, as: 'provider', attributes: ['id', 'user_id', 'bio', 'trust_score', 'availability_status'] },
+  {
+    model: ServiceProvider,
+    as: 'provider',
+    attributes: ['id', 'user_id', 'bio', 'trust_score', 'availability_status'],
+    include: [{ model: User, as: 'user', attributes: ['id', 'full_name', 'phone_number'] }]
+  },
   { model: Category, as: 'category', attributes: ['id', 'name', 'name_amharic', 'icon'] }
 ];
 

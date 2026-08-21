@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/network/api_client.dart';
 import '../../../providers/app_providers.dart';
 import '../../../models/service_request.dart';
 import '../../../models/user_model.dart';
 import '../../reviews/widgets/review_dialog.dart';
 
-class RequestDetailScreen extends ConsumerWidget {
+class RequestDetailScreen extends ConsumerStatefulWidget {
   const RequestDetailScreen({
     super.key,
     required this.requestId,
@@ -16,7 +17,31 @@ class RequestDetailScreen extends ConsumerWidget {
   final String requestId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RequestDetailScreen> createState() => _RequestDetailScreenState();
+}
+
+class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
+  bool _cancelling = false;
+
+  Future<void> _cancelRequest(String requestId) async {
+    setState(() => _cancelling = true);
+    try {
+      await ref.read(serviceRequestsProvider.notifier).cancelRequest(requestId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Request cancelled')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final requestId = widget.requestId;
     final requests = ref.watch(serviceRequestsProvider);
     final user = ref.watch(userProvider);
     final isCustomer = user.role == UserRole.customer;
@@ -110,17 +135,20 @@ class RequestDetailScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  if (request.status == RequestStatus.pending || request.status == RequestStatus.accepted)
+                  if (request.status == RequestStatus.pending ||
+                      request.status == RequestStatus.accepted ||
+                      request.status == RequestStatus.inProgress)
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () {
-                          ref.read(serviceRequestsProvider.notifier).updateStatus(request.id, RequestStatus.cancelled);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Request cancelled')),
-                          );
-                        },
+                        onPressed: _cancelling ? null : () => _cancelRequest(request.id),
                         style: OutlinedButton.styleFrom(foregroundColor: AppTheme.accentRed),
-                        child: const Text('Cancel Request'),
+                        child: _cancelling
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2.5, color: AppTheme.accentRed),
+                              )
+                            : const Text('Cancel Request'),
                       ),
                     ),
                 ],

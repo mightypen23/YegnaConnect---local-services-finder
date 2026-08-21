@@ -101,7 +101,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             title: const Text('Verified Providers Only', style: TextStyle(fontWeight: FontWeight.w700)),
             subtitle: const Text('Only show providers verified by admin'),
             value: _verifiedOnly,
-            activeColor: AppTheme.green,
+            activeThumbColor: AppTheme.green,
             onChanged: (val) => setState(() => _verifiedOnly = val),
           ),
 

@@ -1,37 +1,71 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/category.dart';
+import '../../../providers/app_providers.dart';
+import '../../../providers/auth_provider.dart';
 import '../widgets/auth_widgets.dart';
 
-class ProviderSignUpScreen extends StatefulWidget {
+class ProviderSignUpScreen extends ConsumerStatefulWidget {
   const ProviderSignUpScreen({super.key});
 
   @override
-  State<ProviderSignUpScreen> createState() => _ProviderSignUpScreenState();
+  ConsumerState<ProviderSignUpScreen> createState() => _ProviderSignUpScreenState();
 }
 
-class _ProviderSignUpScreenState extends State<ProviderSignUpScreen> {
+class _ProviderSignUpScreenState extends ConsumerState<ProviderSignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
   final _locationController = TextEditingController();
   final _descriptionController = TextEditingController();
 
   String? _selectedCategory;
+  bool _passwordVisible = false;
+  bool _submitting = false;
 
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     _phoneController.dispose();
     _locationController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
 
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _submitting = true);
+    try {
+      await ref.read(authProvider.notifier).registerProvider(
+            fullName: _nameController.text.trim(),
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+            phoneNumber: _phoneController.text.trim(),
+            location: _locationController.text.trim(),
+            bio: _descriptionController.text.trim(),
+            categoryId: _selectedCategory!,
+          );
+      // Navigation to /provider-home is handled by the router's auth redirect.
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final categories = ref.watch(categoriesProvider);
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -77,6 +111,40 @@ class _ProviderSignUpScreenState extends State<ProviderSignUpScreen> {
                 ),
                 const SizedBox(height: 14),
 
+                AuthField(
+                  label: 'Email address *',
+                  icon: Icons.mail_outline,
+                  keyboardType: TextInputType.emailAddress,
+                  controller: _emailController,
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Email is required';
+                    }
+                    if (!val.contains('@')) return 'Enter a valid email address';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: !_passwordVisible,
+                  validator: (val) {
+                    if (val == null || val.isEmpty) return 'Password is required';
+                    if (val.length < 8) return 'Password must be at least 8 characters';
+                    return null;
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Password *',
+                    prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                    suffixIcon: IconButton(
+                      onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
+                      icon: Icon(_passwordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
                 // Phone Number Field (Required)
                 AuthField(
                   label: 'Phone number *',
@@ -93,31 +161,41 @@ class _ProviderSignUpScreenState extends State<ProviderSignUpScreen> {
                 const SizedBox(height: 14),
 
                 // Service Offered Dropdown Field (Required)
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedCategory,
-                  decoration: const InputDecoration(
-                    labelText: 'Service you provide *',
-                    labelStyle: TextStyle(color: AppTheme.muted, fontSize: 14),
-                    prefixIcon: Icon(Icons.handyman_outlined, size: 20, color: AppTheme.muted),
+                categories.when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Center(child: CircularProgressIndicator()),
                   ),
-                  items: ServiceCategory.defaultCategories.map((c) {
-                    return DropdownMenuItem(
-                      value: c.id,
-                      child: Text(
-                        c.title,
-                        style: const TextStyle(color: AppTheme.ink, fontSize: 14),
-                      ),
-                    );
-                  }).toList(),
-                  validator: (val) {
-                    if (val == null || val.isEmpty) {
-                      return 'Please select a service category';
-                    }
-                    return null;
-                  },
-                  onChanged: (val) {
-                    setState(() => _selectedCategory = val);
-                  },
+                  error: (_, _) => const Text(
+                    'Could not load service categories. Check your connection and try again.',
+                    style: TextStyle(color: Colors.red, fontSize: 13),
+                  ),
+                  data: (items) => DropdownButtonFormField<String>(
+                    initialValue: _selectedCategory,
+                    decoration: const InputDecoration(
+                      labelText: 'Service you provide *',
+                      labelStyle: TextStyle(color: AppTheme.muted, fontSize: 14),
+                      prefixIcon: Icon(Icons.handyman_outlined, size: 20, color: AppTheme.muted),
+                    ),
+                    items: items.map((ServiceCategory c) {
+                      return DropdownMenuItem(
+                        value: c.id,
+                        child: Text(
+                          c.title,
+                          style: const TextStyle(color: AppTheme.ink, fontSize: 14),
+                        ),
+                      );
+                    }).toList(),
+                    validator: (val) {
+                      if (val == null || val.isEmpty) {
+                        return 'Please select a service category';
+                      }
+                      return null;
+                    },
+                    onChanged: (val) {
+                      setState(() => _selectedCategory = val);
+                    },
+                  ),
                 ),
                 const SizedBox(height: 14),
 
@@ -152,15 +230,8 @@ class _ProviderSignUpScreenState extends State<ProviderSignUpScreen> {
 
                 // Submit Button
                 AuthButton(
-                  label: 'Continue',
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Provider profile registered successfully!')),
-                      );
-                      context.go('/provider-home');
-                    }
-                  },
+                  label: _submitting ? 'Creating your profile...' : 'Continue',
+                  onPressed: _submitting ? () {} : _submit,
                 ),
                 const SizedBox(height: 16),
 

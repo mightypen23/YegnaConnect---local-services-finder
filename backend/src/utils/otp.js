@@ -1,4 +1,4 @@
-ire('crypto');
+const crypto = require('crypto');
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const PHONE_REGEX = /^\+?[1-9]\d{7,14}$/;

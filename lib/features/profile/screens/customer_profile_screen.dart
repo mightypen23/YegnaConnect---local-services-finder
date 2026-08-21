@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/app_providers.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../models/user_model.dart';
 
 class CustomerProfileScreen extends ConsumerWidget {
@@ -199,6 +200,7 @@ class CustomerProfileScreen extends ConsumerWidget {
                         child: OutlinedButton(
                           onPressed: () {
                             ref.read(userProvider.notifier).toggleRole();
+                            ref.read(serviceRequestsProvider.notifier).refresh();
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Switched to ${!isProvider ? 'Provider' : 'Customer'} Mode'),
@@ -219,7 +221,12 @@ class CustomerProfileScreen extends ConsumerWidget {
                   SizedBox(
                     width: double.infinity,
                     child: TextButton.icon(
-                      onPressed: () => context.go('/landing'),
+                      onPressed: () async {
+                        await ref.read(authProvider.notifier).logout();
+                        if (context.mounted) {
+                          context.go('/landing');
+                        }
+                      },
                       icon: const Icon(Icons.logout, color: AppTheme.accentRed),
                       label: const Text('Sign Out', style: TextStyle(color: AppTheme.accentRed, fontWeight: FontWeight.bold)),
                     ),

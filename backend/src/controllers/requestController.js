@@ -1,5 +1,21 @@
 const asyncHandler = require('../middleware/asyncHandler');
 const requestService = require('../services/requestService');
+const ProviderRepository = require('../repositories/ProviderRepository');
+
+const providerRepository = new ProviderRepository();
+
+// Resolves the ServiceProvider.id for the authenticated user (credit_balance
+// and requests.provider_id are keyed by this, NOT the User.id).
+async function resolveProviderId(req) {
+  if (req.headers['x-provider-id']) return req.headers['x-provider-id'];
+  const provider = await providerRepository.findByUserId(req.user.id);
+  if (!provider) {
+    const err = new Error('Provider profile not found for this account');
+    err.status = 404;
+    throw err;
+  }
+  return provider.id;
+}
 
 /**
  * POST /api/requests
@@ -30,9 +46,7 @@ const getMyRequests = asyncHandler(async (req, res) => {
  */
 const getProviderRequests = asyncHandler(async (req, res) => {
   const { status, page, limit } = req.query;
-  // The provider record ID should come from the provider profile linked to req.user.id.
-  // For simplicity we accept provider_id from a header or resolve from user.
-  const providerId = req.headers['x-provider-id'] || req.user.id;
+  const providerId = await resolveProviderId(req);
   const result = await requestService.getRequestsForProvider(providerId, {
     status,
     page: parseInt(page, 10) || 1,
@@ -55,7 +69,7 @@ const getById = asyncHandler(async (req, res) => {
  * Provider accepts a request.
  */
 const accept = asyncHandler(async (req, res) => {
-  const providerId = req.headers['x-provider-id'] || req.user.id;
+  const providerId = await resolveProviderId(req);
   const request = await requestService.acceptRequest(providerId, req.params.id);
   res.json({ data: request });
 });
@@ -65,7 +79,7 @@ const accept = asyncHandler(async (req, res) => {
  * Provider marks a request as completed.
  */
 const complete = asyncHandler(async (req, res) => {
-  const providerId = req.headers['x-provider-id'] || req.user.id;
+  const providerId = await resolveProviderId(req);
   const request = await requestService.completeRequest(providerId, req.params.id);
   res.json({ data: request });
 });

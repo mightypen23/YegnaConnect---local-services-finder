@@ -157,4 +157,58 @@ class ServiceRequest {
       isSyncedOffline: (json['isSyncedOffline'] == 1 || json['isSyncedOffline'] == true),
     );
   }
+
+  // Maps the backend's snake_case request status onto the local enum.
+  static RequestStatus _statusFromApi(String? status) {
+    switch (status) {
+      case 'in_progress':
+        return RequestStatus.inProgress;
+      case 'failed':
+        return RequestStatus.rejected;
+      case 'accepted':
+        return RequestStatus.accepted;
+      case 'completed':
+        return RequestStatus.completed;
+      case 'cancelled':
+        return RequestStatus.cancelled;
+      case 'pending':
+      default:
+        return RequestStatus.pending;
+    }
+  }
+
+  // Builds a ServiceRequest from a `GET/POST /api/requests*` backend response.
+  factory ServiceRequest.fromApiJson(Map<String, dynamic> json) {
+    final customer = json['customer'] as Map<String, dynamic>?;
+    final provider = json['provider'] as Map<String, dynamic>?;
+    final providerUser = provider?['user'] as Map<String, dynamic>?;
+    final category = json['category'] as Map<String, dynamic>?;
+    final latitude = json['latitude'];
+    final longitude = json['longitude'];
+    final createdAt = DateTime.parse(json['created_at'] as String);
+    final status = _statusFromApi(json['status'] as String?);
+
+    return ServiceRequest(
+      id: json['id'] as String,
+      customerId: json['customer_id'] as String,
+      customerName: customer?['full_name'] as String? ?? 'Customer',
+      providerId: json['provider_id'] as String? ?? '',
+      providerName: providerUser?['full_name'] as String? ?? 'Unassigned',
+      categoryId: json['category_id'] as String,
+      serviceTitle: category?['name'] as String? ?? 'Service Request',
+      description: json['description'] as String? ?? '',
+      location: (latitude != null && longitude != null)
+          ? 'Lat: $latitude, Lng: $longitude'
+          : 'Location not shared',
+      status: status,
+      createdAt: createdAt,
+      scheduledAt: createdAt,
+      // A pending request's contact details are hidden until a provider
+      // accepts it (spending credit), which is what "unlocks" the lead.
+      isUnlockedByProvider: status != RequestStatus.pending,
+      unlockCreditCost: 10,
+      syncToken: json['id'] as String,
+      isSyncedOffline: true,
+    );
+  }
 }

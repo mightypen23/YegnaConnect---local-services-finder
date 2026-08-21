@@ -27,6 +27,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     final providers = ref.watch(filteredProvidersProvider);
     final selectedCategory = ref.watch(selectedCategoryFilterProvider);
+    final categories = ref.watch(categoriesProvider).value ?? const <ServiceCategory>[];
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -147,10 +148,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     height: 110,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: ServiceCategory.defaultCategories.length,
+                      itemCount: categories.length,
                       itemBuilder: (context, index) {
-                        final cat = ServiceCategory.defaultCategories[index];
-                        final isSelected = selectedCategory == cat.id;
+                        final cat = categories[index];
+                        final isSelected = selectedCategory == cat.title;
                         return Padding(
                           padding: const EdgeInsets.only(right: 12),
                           child: InkWell(
@@ -158,7 +159,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               if (isSelected) {
                                 ref.read(selectedCategoryFilterProvider.notifier).state = null;
                               } else {
-                                ref.read(selectedCategoryFilterProvider.notifier).state = cat.id;
+                                ref.read(selectedCategoryFilterProvider.notifier).state = cat.title;
                               }
                             },
                             borderRadius: BorderRadius.circular(16),
@@ -229,7 +230,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: providers.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final provider = providers[index];
                         return _ProviderCardItem(provider: provider);

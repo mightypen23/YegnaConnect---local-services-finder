@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/network/api_client.dart';
 import '../../../providers/wallet_provider.dart';
 import '../../../providers/app_providers.dart';
 import '../../../models/service_request.dart';
 
-class UnlockRequestDialog extends ConsumerWidget {
+class UnlockRequestDialog extends ConsumerStatefulWidget {
   const UnlockRequestDialog({
     super.key,
     required this.request,
@@ -15,7 +16,32 @@ class UnlockRequestDialog extends ConsumerWidget {
   final ServiceRequest request;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UnlockRequestDialog> createState() => _UnlockRequestDialogState();
+}
+
+class _UnlockRequestDialogState extends ConsumerState<UnlockRequestDialog> {
+  bool _accepting = false;
+
+  Future<void> _accept() async {
+    setState(() => _accepting = true);
+    try {
+      await ref.read(serviceRequestsProvider.notifier).acceptRequest(widget.request.id);
+      await ref.read(walletProvider.notifier).refresh();
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lead unlocked and request accepted!')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      setState(() => _accepting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final request = widget.request;
     final wallet = ref.watch(walletProvider);
     final hasEnoughCredits = wallet.creditBalance >= request.unlockCreditCost;
 
@@ -123,30 +149,21 @@ class UnlockRequestDialog extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _accepting ? null : () => Navigator.pop(context),
                       child: const Text('Cancel'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: FilledButton(
-                      onPressed: () {
-                        final success = ref.read(walletProvider.notifier).deductCredits(
-                              amount: request.unlockCreditCost,
-                              requestTitle: request.serviceTitle,
-                              requestId: request.id,
-                            );
-
-                        if (success) {
-                          ref.read(serviceRequestsProvider.notifier).unlockRequest(request.id);
-                          ref.read(serviceRequestsProvider.notifier).updateStatus(request.id, RequestStatus.accepted);
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Lead unlocked and request accepted!')),
-                          );
-                        }
-                      },
-                      child: const Text('Unlock Lead'),
+                      onPressed: _accepting ? null : _accept,
+                      child: _accepting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                            )
+                          : const Text('Unlock Lead'),
                     ),
                   ),
                 ],
@@ -179,3 +196,4 @@ class UnlockRequestDialog extends ConsumerWidget {
     );
   }
 }
+

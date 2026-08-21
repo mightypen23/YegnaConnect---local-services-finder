@@ -1,6 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/widgets/main_navigation_shell.dart';
+import '../models/user_model.dart';
+import '../providers/app_providers.dart';
+import '../providers/auth_provider.dart';
 import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/landing_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
@@ -24,9 +28,60 @@ import '../features/wallet/screens/provider_wallet_screen.dart';
 import '../features/wallet/screens/buy_credits_screen.dart';
 import '../features/notifications/screens/notifications_screen.dart';
 
-final GoRouter appRouter = GoRouter(
-  initialLocation: '/splash',
-  routes: [
+// Public routes reachable without an authenticated session.
+const _authRoutes = {
+  '/splash',
+  '/landing',
+  '/sign-in',
+  '/sign-up',
+  '/provider-sign-up',
+  '/forgot-password',
+};
+
+// Notifies GoRouter to re-evaluate its redirect whenever auth status changes.
+class _AuthRefreshNotifier extends ChangeNotifier {
+  _AuthRefreshNotifier(Ref ref) {
+    ref.listen<AuthState>(authProvider, (_, _) => notifyListeners());
+  }
+}
+
+final routerProvider = Provider<GoRouter>((ref) {
+  final refreshNotifier = _AuthRefreshNotifier(ref);
+  ref.onDispose(refreshNotifier.dispose);
+
+  return GoRouter(
+    initialLocation: '/splash',
+    refreshListenable: refreshNotifier,
+    redirect: (context, state) {
+      final authState = ref.read(authProvider);
+      final isAuthRoute = _authRoutes.contains(state.matchedLocation);
+
+      if (authState.status == AuthStatus.unknown) {
+        return state.matchedLocation == '/splash' ? null : '/splash';
+      }
+
+      // Mid-login the user stays on the form, which renders its own progress
+      // state. Redirecting here would remount splash and restart the session
+      // restore, cancelling the login that is still in flight.
+      if (authState.status == AuthStatus.authenticating) {
+        return null;
+      }
+
+      if (authState.status == AuthStatus.authenticated) {
+        if (isAuthRoute) {
+          final role = ref.read(userProvider).role;
+          return role == UserRole.provider ? '/provider-home' : '/home';
+        }
+        return null;
+      }
+
+      // Unauthenticated: move off splash, but allow other auth routes.
+      if (state.matchedLocation == '/splash') {
+        return '/landing';
+      }
+      return isAuthRoute ? null : '/landing';
+    },
+    routes: [
     GoRoute(
       path: '/splash',
       builder: (context, state) => const SplashScreen(),
@@ -140,4 +195,5 @@ final GoRouter appRouter = GoRouter(
       redirect: (context, state) => '/splash',
     ),
   ],
-);
+  );
+});

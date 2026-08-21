@@ -26,7 +26,11 @@ async function requestOtp(phone_number, full_name) {
   }
 
   const code = generateCode();
-  await sendOtp(phone, code);
+  try {
+    await sendOtp(phone, code);
+  } catch {
+    throw new AuthError(502, 'Could not send the verification code. Please try again.');
+  }
 
   if (!user) {
     return User.create({
@@ -123,4 +127,19 @@ function issueToken(user) {
   return signToken(user);
 }
 
-module.exports = { requestOtp, verifyOtp, register, login, issueToken, AuthError };
+async function updateProfile(userId, updates) {
+  const user = await User.findByPk(userId);
+  if (!user) {
+    throw new AuthError(404, 'User not found');
+  }
+  const allowed = ['full_name', 'phone_number', 'location'];
+  for (const key of allowed) {
+    if (updates[key] !== undefined) {
+      user[key] = updates[key];
+    }
+  }
+  await user.save();
+  return user;
+}
+
+module.exports = { requestOtp, verifyOtp, register, login, issueToken, updateProfile, AuthError };

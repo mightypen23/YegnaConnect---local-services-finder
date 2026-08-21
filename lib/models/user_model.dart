@@ -54,9 +54,9 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'] as String,
-      fullName: json['fullName'] as String,
-      email: json['email'] as String,
-      phoneNumber: json['phoneNumber'] as String,
+      fullName: json['full_name'] as String? ?? json['fullName'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      phoneNumber: json['phone_number'] as String? ?? json['phoneNumber'] as String? ?? '',
       profileImage: json['profileImage'] as String?,
       location: json['location'] as String? ?? 'Addis Ababa',
       role: UserRole.values.firstWhere(

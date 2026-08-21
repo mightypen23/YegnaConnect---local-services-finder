@@ -1,23 +1,25 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/network/api_client.dart';
 import '../models/user_model.dart';
 import '../models/provider_model.dart';
 import '../models/category.dart';
 import '../models/service_request.dart';
-import '../models/chat_message.dart';
 import '../models/notification_model.dart';
-import '../models/review.dart';
+import 'network_providers.dart';
 
 // Current User State Provider
 class UserNotifier extends StateNotifier<UserModel> {
-  UserNotifier()
-      : super(const UserModel(
-          id: 'usr_001',
-          fullName: 'Jhon Sheferaw',
-          email: 'jhon.sheferaw@gmail.com',
-          phoneNumber: '+251-912345678',
-          location: 'Mexico, Addis Ababa',
-          role: UserRole.customer,
-        ));
+  UserNotifier() : super(_guest);
+
+  static const _guest = UserModel(
+    id: '',
+    fullName: '',
+    email: '',
+    phoneNumber: '',
+    location: '',
+    role: UserRole.customer,
+  );
 
   void updateProfile({
     String? fullName,
@@ -37,86 +39,56 @@ class UserNotifier extends StateNotifier<UserModel> {
     final nextRole = state.role == UserRole.customer ? UserRole.provider : UserRole.customer;
     state = state.copyWith(role: nextRole);
   }
+
+  // Replaces the in-memory user with the authenticated backend profile.
+  void setUser(UserModel user) {
+    state = user;
+  }
+
+  void clearUser() {
+    state = _guest;
+  }
 }
 
 final userProvider = StateNotifierProvider<UserNotifier, UserModel>((ref) {
   return UserNotifier();
 });
 
-// Categories Provider
-final categoriesProvider = Provider<List<ServiceCategory>>((ref) {
-  return ServiceCategory.defaultCategories;
+// Categories Provider - fetched from the backend, falling back to the
+// bundled defaults if the request fails (e.g. offline).
+final categoriesProvider = FutureProvider<List<ServiceCategory>>((ref) async {
+  final api = ref.watch(apiClientProvider);
+  try {
+    final response = await api.dio.get('/categories');
+    final categories = (response.data['categories'] as List<dynamic>)
+        .map((json) => ServiceCategory.fromJson(json as Map<String, dynamic>))
+        .toList();
+    return categories.isEmpty ? ServiceCategory.defaultCategories : categories;
+  } catch (_) {
+    return ServiceCategory.defaultCategories;
+  }
 });
 
-// Mock Providers List Provider
+// Providers List Provider - fetched from the backend.
 class ProviderSearchNotifier extends StateNotifier<List<ProviderModel>> {
-  ProviderSearchNotifier()
-      : super([
-          const ProviderModel(
-            id: 'prov_1',
-            userId: 'u_solomon',
-            fullName: 'Solomon Getaw',
-            phoneNumber: '+251-912345678',
-            location: 'Kality, Addis Ababa',
-            bio: 'Experienced TV & Dish technician with over 6 years fixing signal issues and home installations.',
-            rating: 4.0,
-            reviewCount: 1200,
-            skillsCount: 6,
-            completedOrders: 89,
-            totalOrders: 94,
-            services: ['Tv/Dish', 'Electrician', 'Plumber', 'Painting'],
-            isVerified: true,
-            distanceKm: 1.2,
-          ),
-          const ProviderModel(
-            id: 'prov_2',
-            userId: 'u_nardos',
-            fullName: 'Nardos Tesfaye',
-            phoneNumber: '+251-911223344',
-            location: 'Bole, Addis Ababa',
-            bio: 'Professional electrician providing safe wiring, circuit repair, and light fitting.',
-            rating: 4.8,
-            reviewCount: 450,
-            skillsCount: 4,
-            completedOrders: 142,
-            totalOrders: 145,
-            services: ['Electrician', 'Plumber'],
-            isVerified: true,
-            distanceKm: 2.5,
-          ),
-          const ProviderModel(
-            id: 'prov_3',
-            userId: 'u_abebe',
-            fullName: 'Abebe Sheferaw',
-            phoneNumber: '+251-922334455',
-            location: 'Sarbet, Addis Ababa',
-            bio: 'Expert plumber handling emergency leaks, pipe replacement, and bathroom fittings.',
-            rating: 4.5,
-            reviewCount: 310,
-            skillsCount: 5,
-            completedOrders: 78,
-            totalOrders: 82,
-            services: ['Plumber', 'Cleaning'],
-            isVerified: true,
-            distanceKm: 3.8,
-          ),
-          const ProviderModel(
-            id: 'prov_4',
-            userId: 'u_sitota',
-            fullName: 'Sitota Tesfaw',
-            phoneNumber: '+251-933445566',
-            location: 'Kazanchis, Addis Ababa',
-            bio: 'Interior and exterior painter. Clean work with top quality paints.',
-            rating: 4.2,
-            reviewCount: 190,
-            skillsCount: 3,
-            completedOrders: 54,
-            totalOrders: 58,
-            services: ['Painting', 'Cleaning'],
-            isVerified: false,
-            distanceKm: 4.1,
-          ),
-        ]);
+  ProviderSearchNotifier(this._ref) : super(const []) {
+    _fetchProviders();
+  }
+
+  final Ref _ref;
+
+  Future<void> _fetchProviders() async {
+    final api = _ref.read(apiClientProvider);
+    try {
+      final response = await api.dio.get('/providers');
+      final providers = (response.data['providers'] as List<dynamic>)
+          .map((json) => ProviderModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+      state = providers;
+    } catch (_) {
+      // Keep the empty state; screens already handle an empty provider list.
+    }
+  }
 
   void filterProviders({
     String query = '',
@@ -131,7 +103,7 @@ class ProviderSearchNotifier extends StateNotifier<List<ProviderModel>> {
 
 final providerSearchProvider =
     StateNotifierProvider<ProviderSearchNotifier, List<ProviderModel>>((ref) {
-  return ProviderSearchNotifier();
+  return ProviderSearchNotifier(ref);
 });
 
 // Selected Category Filter State
@@ -157,47 +129,56 @@ final filteredProvidersProvider = Provider<List<ProviderModel>>((ref) {
   }).toList();
 });
 
-// Service Requests Notifier
+// Service Requests Notifier - fetched from the backend for the current
+// user's role (customer's own requests, or a provider's incoming requests).
 class ServiceRequestsNotifier extends StateNotifier<List<ServiceRequest>> {
-  ServiceRequestsNotifier()
-      : super([
-          ServiceRequest(
-            id: 'req_101',
-            customerId: 'usr_001',
-            customerName: 'Jhon Sheferaw',
-            providerId: 'prov_1',
-            providerName: 'Solomon Getaw',
-            categoryId: 'tvdish',
-            serviceTitle: 'Fix TV Signal & Antenna',
-            description: 'My dish signal is completely lost after heavy rain.',
-            location: 'Bole, back of Skylight hotel',
-            status: RequestStatus.accepted,
-            createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-            scheduledAt: DateTime.now().add(const Duration(hours: 4)),
-            isUnlockedByProvider: true,
-            syncToken: 'sync_101',
-          ),
-          ServiceRequest(
-            id: 'req_102',
-            customerId: 'usr_001',
-            customerName: 'Jhon Sheferaw',
-            providerId: 'prov_1',
-            providerName: 'Solomon Getaw',
-            categoryId: 'electrician',
-            serviceTitle: 'Main Switch Box Repair',
-            description: 'Fuse trips whenever electric stove is turned on.',
-            location: 'Mexico, Addis Ababa',
-            status: RequestStatus.pending,
-            createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-            scheduledAt: DateTime.now().add(const Duration(days: 1)),
-            isUnlockedByProvider: false,
-            unlockCreditCost: 5,
-            syncToken: 'sync_102',
-          ),
-        ]);
+  ServiceRequestsNotifier(this._ref) : super(const []) {
+    refresh();
+  }
+
+  final Ref _ref;
+
+  Future<void> refresh() async {
+    final api = _ref.read(apiClientProvider);
+    final role = _ref.read(userProvider).role;
+    final endpoint = role == UserRole.provider ? '/requests/provider' : '/requests/me';
+    try {
+      final response = await api.dio.get(endpoint);
+      final requests = (response.data['data'] as List<dynamic>)
+          .map((json) => ServiceRequest.fromApiJson(json as Map<String, dynamic>))
+          .toList();
+      state = requests;
+    } catch (_) {
+      // Keep the current state; screens already handle an empty request list.
+    }
+  }
 
   void addRequest(ServiceRequest request) {
     state = [request, ...state];
+  }
+
+  // Creates a service request via POST /api/requests and prepends it on success.
+  Future<void> createRequest({
+    required String categoryId,
+    String? description,
+    String? providerId,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final api = _ref.read(apiClientProvider);
+    try {
+      final response = await api.dio.post('/requests', data: {
+        'category_id': categoryId,
+        'description': ?description,
+        'provider_id': ?providerId,
+        'latitude': ?latitude,
+        'longitude': ?longitude,
+      });
+      final request = ServiceRequest.fromApiJson(response.data['data'] as Map<String, dynamic>);
+      state = [request, ...state];
+    } on DioException catch (e) {
+      throw ApiClient.toApiException(e);
+    }
   }
 
   void updateStatus(String requestId, RequestStatus newStatus) {
@@ -217,11 +198,53 @@ class ServiceRequestsNotifier extends StateNotifier<List<ServiceRequest>> {
       return r;
     }).toList();
   }
+
+  // Replaces a request in state with the server's version returned by an action endpoint.
+  void _replaceWithApiResult(dynamic data) {
+    final updated = ServiceRequest.fromApiJson(data as Map<String, dynamic>);
+    state = state.map((r) => r.id == updated.id ? updated : r).toList();
+  }
+
+  // Provider accepts a pending request via PATCH /api/requests/:id/accept
+  // (this is what "unlocks" the lead and spends the provider's credit).
+  Future<void> acceptRequest(String requestId) async {
+    final api = _ref.read(apiClientProvider);
+    try {
+      final response = await api.dio.patch('/requests/$requestId/accept');
+      _replaceWithApiResult(response.data['data']);
+    } on DioException catch (e) {
+      throw ApiClient.toApiException(e);
+    }
+  }
+
+  // Provider marks an accepted/in-progress request as completed.
+  Future<void> completeRequest(String requestId) async {
+    final api = _ref.read(apiClientProvider);
+    try {
+      final response = await api.dio.patch('/requests/$requestId/complete');
+      _replaceWithApiResult(response.data['data']);
+    } on DioException catch (e) {
+      throw ApiClient.toApiException(e);
+    }
+  }
+
+  // Customer or provider cancels a request.
+  Future<void> cancelRequest(String requestId, {String? reason}) async {
+    final api = _ref.read(apiClientProvider);
+    try {
+      final response = await api.dio.patch('/requests/$requestId/cancel', data: {
+        'reason': ?reason,
+      });
+      _replaceWithApiResult(response.data['data']);
+    } on DioException catch (e) {
+      throw ApiClient.toApiException(e);
+    }
+  }
 }
 
 final serviceRequestsProvider =
     StateNotifierProvider<ServiceRequestsNotifier, List<ServiceRequest>>((ref) {
-  return ServiceRequestsNotifier();
+  return ServiceRequestsNotifier(ref);
 });
 
 // Notifications Notifier

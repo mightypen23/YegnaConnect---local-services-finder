@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/app_providers.dart';
+import '../../../providers/auth_provider.dart';
 
 class CustomerProfileEditScreen extends ConsumerStatefulWidget {
   const CustomerProfileEditScreen({super.key});
@@ -15,6 +17,7 @@ class _CustomerProfileEditScreenState extends ConsumerState<CustomerProfileEditS
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _locationController;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -31,6 +34,27 @@ class _CustomerProfileEditScreenState extends ConsumerState<CustomerProfileEditS
     _phoneController.dispose();
     _locationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await ref.read(authProvider.notifier).updateProfile(
+            fullName: _nameController.text,
+            phoneNumber: _phoneController.text,
+            location: _locationController.text,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
+      context.pop();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -159,32 +183,27 @@ class _CustomerProfileEditScreenState extends ConsumerState<CustomerProfileEditS
                     width: double.infinity,
                     height: 54,
                     child: FilledButton(
-                      onPressed: () {
-                        ref.read(userProvider.notifier).updateProfile(
-                              fullName: _nameController.text,
-                              phoneNumber: _phoneController.text,
-                              location: _locationController.text,
-                            );
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Profile updated successfully')),
-                        );
-                        context.pop();
-                      },
+                      onPressed: _saving ? null : _save,
                       style: FilledButton.styleFrom(
                         backgroundColor: AppTheme.greenLight,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: const Text(
-                        'Save Changes',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                            )
+                          : const Text(
+                              'Save Changes',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
                 ],

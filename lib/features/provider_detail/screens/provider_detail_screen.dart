@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/network/api_client.dart';
 import '../../../providers/app_providers.dart';
 import '../../../models/provider_model.dart';
-import '../../../models/service_request.dart';
 
 class ProviderDetailScreen extends ConsumerWidget {
   const ProviderDetailScreen({
@@ -255,32 +255,31 @@ class ProviderDetailScreen extends ConsumerWidget {
     );
   }
 
-  void _handleBookingRequest(BuildContext context, WidgetRef ref, ProviderModel provider) {
-    // Add booking to state provider
-    final newRequest = ServiceRequest(
-      id: 'req_${DateTime.now().millisecondsSinceEpoch}',
-      customerId: 'usr_001',
-      customerName: 'Jhon Sheferaw',
-      providerId: provider.id,
-      providerName: provider.fullName,
-      categoryId: provider.services.isNotEmpty ? provider.services.first.toLowerCase() : 'service',
-      serviceTitle: '${provider.services.isNotEmpty ? provider.services.first : 'General'} Service',
-      description: 'Service request booked directly from provider profile.',
-      location: provider.location,
-      status: RequestStatus.pending,
-      createdAt: DateTime.now(),
-      scheduledAt: DateTime.now().add(const Duration(hours: 3)),
-      syncToken: 'sync_${DateTime.now().millisecondsSinceEpoch}',
-    );
+  Future<void> _handleBookingRequest(BuildContext context, WidgetRef ref, ProviderModel provider) async {
+    if (provider.categoryIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This provider has no service category set up.')),
+      );
+      return;
+    }
 
-    ref.read(serviceRequestsProvider.notifier).addRequest(newRequest);
-
-    // Show "Order Requested!" Dialog matching Visily UI
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => _OrderRequestedDialog(providerName: provider.fullName),
-    );
+    try {
+      await ref.read(serviceRequestsProvider.notifier).createRequest(
+            categoryId: provider.categoryIds.first,
+            providerId: provider.id,
+            description: 'Service request booked directly from provider profile.',
+          );
+      if (!context.mounted) return;
+      // Show "Order Requested!" Dialog matching Visily UI
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => _OrderRequestedDialog(providerName: provider.fullName),
+      );
+    } on ApiException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 }
 

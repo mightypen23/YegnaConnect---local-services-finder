@@ -147,7 +147,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: _conversations.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final chat = _conversations[index];
                       return _ChatConversationCard(chat: chat);

@@ -2,8 +2,12 @@ const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 const { Category, ProviderLocation, User, VerificationBadge } = require('../models');
 const ProviderRepository = require('../repositories/ProviderRepository');
+const creditService = require('./creditService');
 
 const providerRepository = new ProviderRepository();
+
+// One-time credit bonus granted to every new provider profile.
+const SIGNUP_CREDIT_BONUS = 30;
 
 class ProviderError extends Error {
   constructor(status, message) {
@@ -115,6 +119,11 @@ async function createProvider(user, { id, bio, categories }) {
       { transaction: t }
     );
     await providerRepository.addCategories(created.id, categoryInputs, { transaction: t });
+    await creditService.creditProvider(
+      created.id, SIGNUP_CREDIT_BONUS,
+      'Signup bonus', null, null,
+      { transaction: t }
+    );
     user.role = 'provider';
     await user.save({ transaction: t });
     return created;

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/network/api_client.dart';
 import '../../../providers/app_providers.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/wallet_provider.dart';
 import '../../../models/service_request.dart';
 import '../../wallet/widgets/unlock_request_dialog.dart';
@@ -61,6 +63,59 @@ class ProviderHomeScreen extends ConsumerWidget {
                   IconButton(
                     onPressed: () => context.push('/notifications'),
                     icon: const Icon(Icons.notifications_none_rounded, size: 28),
+                  ),
+                  // The provider dashboard sits outside the bottom-nav shell,
+                  // so account actions live here.
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded, size: 26),
+                    onSelected: (value) async {
+                      switch (value) {
+                        case 'profile':
+                          context.push('/provider-profile-edit');
+                        case 'verification':
+                          context.push('/provider-verification');
+                        case 'wallet':
+                          context.push('/wallet');
+                        case 'sign-out':
+                          await ref.read(authProvider.notifier).logout();
+                          if (context.mounted) context.go('/landing');
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 'profile',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.person_outline),
+                          title: Text('Edit profile'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'verification',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.verified_outlined),
+                          title: Text('Verification'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'wallet',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.account_balance_wallet_outlined),
+                          title: Text('Wallet'),
+                        ),
+                      ),
+                      PopupMenuDivider(),
+                      PopupMenuItem(
+                        value: 'sign-out',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.logout_rounded, color: Colors.red),
+                          title: Text('Sign out', style: TextStyle(color: Colors.red)),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -145,7 +200,7 @@ class ProviderHomeScreen extends ConsumerWidget {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: requests.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final req = requests[index];
                   return _ProviderRequestCard(request: req);
@@ -276,17 +331,37 @@ class _ProviderRequestCard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () {
-                      ref.read(serviceRequestsProvider.notifier).updateStatus(request.id, RequestStatus.inProgress);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Service marked as In Progress')),
-                      );
-                    },
-                    child: const Text('Start Work'),
+                if (request.status == RequestStatus.accepted)
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        ref.read(serviceRequestsProvider.notifier).updateStatus(request.id, RequestStatus.inProgress);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Service marked as In Progress')),
+                        );
+                      },
+                      child: const Text('Start Work'),
+                    ),
+                  )
+                else if (request.status == RequestStatus.inProgress)
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        try {
+                          await ref.read(serviceRequestsProvider.notifier).completeRequest(request.id);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Service marked as Completed')),
+                          );
+                        } on ApiException catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+                        }
+                      },
+                      style: FilledButton.styleFrom(backgroundColor: AppTheme.green),
+                      child: const Text('Mark Complete'),
+                    ),
                   ),
-                ),
               ],
             ),
         ],

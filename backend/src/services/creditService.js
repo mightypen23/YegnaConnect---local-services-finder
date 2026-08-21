@@ -1,6 +1,9 @@
 const { CreditTransaction, ServiceProvider } = require('../models');
 const { sequelize } = require('../config/database');
 
+const CREDIT_PACKAGE_PRICE_BIRR = 50; // Price of one credit top-up package
+const CREDIT_PACKAGE_CREDITS = 100;   // Credits granted per package purchased
+
 /**
  * Get the current credit balance for a provider.
  */
@@ -109,6 +112,30 @@ async function debitProvider(providerId, amount, reason, referenceId, referenceT
 }
 
 /**
+ * Purchase a credit top-up package (50 birr = 100 credits).
+ *
+ * @param {string} providerId
+ * @param {number} packages   Number of 50-birr / 100-credit packages to buy
+ */
+async function purchaseCredits(providerId, packages) {
+  if (!Number.isInteger(packages) || packages <= 0) {
+    const err = new Error('Package count must be a positive integer');
+    err.status = 400;
+    throw err;
+  }
+
+  const credits = packages * CREDIT_PACKAGE_CREDITS;
+  const amountPaid = packages * CREDIT_PACKAGE_PRICE_BIRR;
+
+  await creditProvider(
+    providerId, credits,
+    `Credit purchase: ${amountPaid} birr for ${credits} credits`, null, 'Purchase'
+  );
+
+  return getBalance(providerId);
+}
+
+/**
  * Get credit balance summary: total credited, total debited, current balance.
  */
 async function getBalanceSummary(providerId) {
@@ -147,5 +174,8 @@ module.exports = {
   getTransactionHistory,
   creditProvider,
   debitProvider,
-  getBalanceSummary
+  purchaseCredits,
+  getBalanceSummary,
+  CREDIT_PACKAGE_PRICE_BIRR,
+  CREDIT_PACKAGE_CREDITS
 };

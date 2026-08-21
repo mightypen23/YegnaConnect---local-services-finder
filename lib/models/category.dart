@@ -67,4 +67,39 @@ class ServiceCategory {
       iconData: Icons.local_shipping_rounded,
     ),
   ];
+
+  factory ServiceCategory.fromJson(Map<String, dynamic> json) {
+    return ServiceCategory(
+      id: json['id'] as String,
+      title: json['name'] as String,
+      iconData: _iconForKey(json['icon'] as String?),
+    );
+  }
+
+  static IconData _iconForKey(String? key) {
+    switch (key) {
+      case 'plumbing':
+        return Icons.plumbing_rounded;
+      case 'electrician':
+        return Icons.flash_on_rounded;
+      case 'tv':
+        return Icons.tv_rounded;
+      case 'cleaning':
+        return Icons.cleaning_services_rounded;
+      case 'painting':
+        return Icons.format_paint_rounded;
+      case 'mechanic':
+        return Icons.build_rounded;
+      case 'carpenter':
+        return Icons.handyman_rounded;
+      case 'tutor':
+        return Icons.school_rounded;
+      case 'beauty':
+        return Icons.content_cut_rounded;
+      case 'transport':
+        return Icons.local_shipping_rounded;
+      default:
+        return Icons.handyman_rounded;
+    }
+  }
 }
