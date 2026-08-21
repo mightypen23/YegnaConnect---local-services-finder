@@ -121,8 +121,14 @@ async function createProvider(user, { id, bio, categories, location, fullName, p
     await providerRepository.addCategories(created.id, categoryInputs, { transaction: t });
     if (location) {
       const locData = typeof location === 'string'
-        ? { address: location, city: location }
-        : location;
+        ? { address: location, city: location, region: 'Addis Ababa', latitude: 9.0192, longitude: 38.7525 }
+        : {
+            address: location.address || location.city || 'Addis Ababa',
+            city: location.city || location.address || 'Addis Ababa',
+            region: location.region || 'Addis Ababa',
+            latitude: location.latitude ?? 9.0192,
+            longitude: location.longitude ?? 38.7525
+          };
       await providerRepository.updateLocation(created.id, locData, { transaction: t });
     }
     await creditService.creditProvider(
