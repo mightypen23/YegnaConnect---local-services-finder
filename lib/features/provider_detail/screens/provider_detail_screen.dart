@@ -17,6 +17,9 @@ class ProviderDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final providers = ref.watch(providerSearchProvider);
+    if (providers.isEmpty) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final provider = providers.firstWhere(
       (p) => p.id == providerId,
       orElse: () => providers.first,

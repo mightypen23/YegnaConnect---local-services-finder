@@ -70,7 +70,7 @@ class _UnlockRequestDialogState extends ConsumerState<UnlockRequestDialog> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    hasEnoughCredits ? 'Unlock Lead Details' : 'Insufficient Credits',
+                    hasEnoughCredits ? 'Unlock Lead Details' : 'Insufficient YC Coins',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -85,7 +85,7 @@ class _UnlockRequestDialogState extends ConsumerState<UnlockRequestDialog> {
             Text(
               hasEnoughCredits
                   ? 'Unlocking this request lead allows you to view the customer contact info and accept the service.'
-                  : 'You need ${request.unlockCreditCost} credits to unlock this customer request, but you only have ${wallet.creditBalance} credits.',
+                  : 'You need ${request.unlockCreditCost} YC Coins to unlock this customer request, but you only have ${wallet.creditBalance} YC Coins.',
               style: const TextStyle(color: AppTheme.muted, fontSize: 14, height: 1.35),
             ),
             const SizedBox(height: 20),
@@ -105,7 +105,7 @@ class _UnlockRequestDialogState extends ConsumerState<UnlockRequestDialog> {
                     children: [
                       const Text('Lead Unlock Cost:', style: TextStyle(color: AppTheme.muted, fontSize: 13)),
                       Text(
-                        '${request.unlockCreditCost} Credits',
+                        '${request.unlockCreditCost} YC Coins',
                         style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.ink, fontSize: 14),
                       ),
                     ],
@@ -116,7 +116,7 @@ class _UnlockRequestDialogState extends ConsumerState<UnlockRequestDialog> {
                     children: [
                       const Text('Your Current Balance:', style: TextStyle(color: AppTheme.muted, fontSize: 13)),
                       Text(
-                        '${wallet.creditBalance} Credits',
+                        '${wallet.creditBalance} YC Coins',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: hasEnoughCredits ? AppTheme.green : AppTheme.accentRed,
@@ -132,7 +132,7 @@ class _UnlockRequestDialogState extends ConsumerState<UnlockRequestDialog> {
                       children: [
                         const Text('Balance After Unlock:', style: TextStyle(color: AppTheme.muted, fontSize: 13)),
                         Text(
-                          '${wallet.creditBalance - request.unlockCreditCost} Credits',
+                          '${wallet.creditBalance - request.unlockCreditCost} YC Coins',
                           style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.ink, fontSize: 14),
                         ),
                       ],
@@ -185,7 +185,7 @@ class _UnlockRequestDialogState extends ConsumerState<UnlockRequestDialog> {
                         context.push('/buy-credits');
                       },
                       style: FilledButton.styleFrom(backgroundColor: AppTheme.greenLight),
-                      child: const Text('Buy Credits'),
+                      child: const Text('Buy YC Coins'),
                     ),
                   ),
                 ],

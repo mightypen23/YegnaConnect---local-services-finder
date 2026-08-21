@@ -114,7 +114,7 @@ class ProviderWallet {
 
   const ProviderWallet({
     required this.providerId,
-    this.creditBalance = 50,
+    this.creditBalance = 30,
     required this.transactions,
   });
 
