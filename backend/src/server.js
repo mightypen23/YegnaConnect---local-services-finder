@@ -11,7 +11,15 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000'
+  origin: (origin, callback) => {
+    // Allow localhost on any port (for web dev server)
+    if (!origin || /^http:\/\/localhost/.test(origin) || /^http:\/\/127\.0\.0\.1/.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
 }));
 app.use(morgan('dev'));
 app.use(express.json());
@@ -22,14 +30,18 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes will be added here
-// app.use('/api/auth', require('./routes/auth'));
-// app.use('/api/providers', require('./routes/providers'));
-// app.use('/api/categories', require('./routes/categories'));
-// app.use('/api/requests', require('./routes/requests'));
-// app.use('/api/reviews', require('./routes/reviews'));
-// app.use('/api/admin', require('./routes/admin'));
-// app.use('/api/sync', require('./routes/sync'));
+// Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/providers', require('./routes/providers'));
+app.use('/api/categories', require('./routes/categories'));
+app.use('/api/requests', require('./routes/requests'));
+app.use('/api/reviews', require('./routes/reviews'));
+app.use('/api/plans', require('./routes/plans'));
+app.use('/api/subscriptions', require('./routes/subscriptions'));
+app.use('/api/credits', require('./routes/credits'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/sync', require('./routes/sync'));
+app.use('/api/admin', require('./routes/admin'));
 
 // 404 handler
 app.use((req, res) => {
@@ -39,8 +51,10 @@ app.use((req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
-    error: 'Something went wrong!',
+  const status = err.status || err.statusCode || 500;
+  const errorMsg = (status >= 400 && status < 500) ? err.message : 'Something went wrong!';
+  res.status(status).json({ 
+    error: errorMsg,
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });

@@ -165,10 +165,10 @@ async function grantCredits({ adminUserId, providerId, amount, reason }) {
   if (errors.length > 0) {
     throw new AdminError(400, errors[0]);
   }
-  return creditService.creditProvider(providerId, amount, {
-    reason: reason && String(reason).trim() !== '' ? String(reason).trim() : 'admin:grant',
-    performedBy: adminUserId
-  });
+  const cleanReason = reason && String(reason).trim() !== '' ? String(reason).trim() : 'admin:grant';
+  const transaction = await creditService.creditProvider(providerId, amount, cleanReason, null, 'AdminGrant');
+  const { balance } = await creditService.getBalance(providerId);
+  return { transaction, balance };
 }
 
 module.exports = {

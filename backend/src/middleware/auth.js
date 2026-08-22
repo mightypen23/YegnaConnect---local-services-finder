@@ -5,9 +5,7 @@ function authenticate(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
 
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
+  if (!token) return res.status(401).json({ error: 'No token provided' });
 
   let payload;
   try {
@@ -18,9 +16,7 @@ function authenticate(req, res, next) {
 
   User.findByPk(payload.sub)
     .then((user) => {
-      if (!user) {
-        return res.status(401).json({ error: 'User no longer exists' });
-      }
+      if (!user) return res.status(401).json({ error: 'User no longer exists' });
       if (user.token_version !== payload.token_version) {
         return res.status(401).json({ error: 'Token revoked. Please sign in again.' });
       }
@@ -32,15 +28,14 @@ function authenticate(req, res, next) {
 
 function requireRole(...roles) {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    if (!roles.includes(req.user.role)) {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
     return next();
   };
 }
 
-function requireAdmin(req, res, next) {
-  return requireRole('admin')(req, res, next);
-}
+const requireAdmin = requireRole('admin');
 
 module.exports = { authenticate, requireRole, requireAdmin };

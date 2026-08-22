@@ -11,19 +11,23 @@ const {
   list,
   getMe,
   update,
-  setLocationHandler
+  setLocationHandler,
+  submitVerificationHandler,
+  getProviderStatsHandler
 } = require('../controllers/providerController');
 const { authenticate } = require('../middleware/auth');
-const { historyValidators, history: creditsHistory } = require('../controllers/creditController');
-const { statusView: subscriptionStatus } = require('../controllers/subscriptionController');
+const { getTransactions: creditsHistory } = require('../controllers/creditController');
+const { getActive: subscriptionStatus } = require('../controllers/subscriptionController');
 
 router.post('/', authenticate, createProviderValidators, create);
 router.get('/', list);
 router.get('/me', authenticate, getMe);
-router.get('/me/credits', authenticate, historyValidators, creditsHistory);
+router.get('/me/credits', authenticate, creditsHistory);
 router.get('/me/subscription', authenticate, subscriptionStatus);
+router.post('/me/verification', authenticate, submitVerificationHandler);
 router.get('/:id', getProviderValidators, getPublicOne);
 router.put('/:id', authenticate, updateValidators, update);
 router.put('/:id/location', authenticate, locationValidators, setLocationHandler);
+router.get('/me/stats', authenticate, getProviderStatsHandler);
 
 module.exports = router;

@@ -6,6 +6,8 @@ const {
   register: registerService,
   login: loginService,
   issueToken,
+  updateProfile: updateProfileService,
+  deleteAccount: deleteAccountService,
   AuthError
 } = require('../services/authService');
 
@@ -39,6 +41,7 @@ function sanitizeUser(user) {
     full_name: u.full_name,
     phone_number: u.phone_number,
     email: u.email,
+    location: u.location,
     role: u.role,
     is_verified: u.is_verified,
     created_at: u.created_at,
@@ -63,6 +66,11 @@ const verifyOtpValidators = [
 const registerValidators = [
   body('full_name').trim().notEmpty().withMessage('Full name is required'),
   body('email').isEmail().withMessage('Invalid email address'),
+  body('phone_number')
+    .optional({ checkFalsy: true })
+    .trim()
+    .notEmpty()
+    .withMessage('Phone number cannot be empty'),
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters')
@@ -94,8 +102,22 @@ const verifyOtp = asyncHandler(async (req, res) => {
 
 const register = asyncHandler(async (req, res) => {
   if (!requireValid(req, res)) return;
-  const { full_name, email, password } = req.body;
-  const user = await registerService(full_name, email, password);
+  const { full_name, email, password, phone_number } = req.body;
+  const { user, devCode } = await registerService(full_name, email, password, phone_number || null);
+
+  // If a phone was provided the account is pending OTP verification.
+  if (phone_number) {
+    const tempToken = issueToken(user);
+    // Always include dev_code so the Flutter OTP screen can display it.
+    console.log(`[register] OTP for ${user.phone_number}: ${devCode}`);
+    return res.status(201).json({
+      pending_phone_verification: true,
+      phone_number: user.phone_number,
+      token: tempToken,
+      dev_code: devCode
+    });
+  }
+
   res.status(201).json({ token: issueToken(user), user: sanitizeUser(user) });
 });
 
@@ -110,14 +132,36 @@ const me = asyncHandler(async (req, res) => {
   res.json({ user: sanitizeUser(req.user) });
 });
 
+const updateProfileValidators = [
+  body('full_name').optional({ checkFalsy: true }).trim().notEmpty().withMessage('Full name cannot be empty'),
+  body('phone_number').optional({ checkFalsy: true }).trim().notEmpty().withMessage('Phone number cannot be empty'),
+  body('location').optional({ checkFalsy: true }).trim()
+];
+
+const updateMe = asyncHandler(async (req, res) => {
+  if (!requireValid(req, res)) return;
+  const { full_name, phone_number, location } = req.body;
+  const user = await updateProfileService(req.user.id, { full_name, phone_number, location });
+  res.json({ user: sanitizeUser(user) });
+});
+
+const deleteMe = asyncHandler(async (req, res) => {
+  await deleteAccountService(req.user.id);
+  res.status(204).send();
+});
+
 module.exports = {
   requestOtpValidators,
   verifyOtpValidators,
   registerValidators,
   loginValidators,
+  updateProfileValidators,
+  sanitizeUser,
   requestOtp,
   verifyOtp,
   register,
   login,
-  me
+  me,
+  updateMe,
+  deleteMe
 };

@@ -6,9 +6,11 @@ const ProviderLocation = require('./ProviderLocation');
 const Review = require('./Review');
 const VerificationBadge = require('./VerificationBadge');
 const ServiceRequest = require('./ServiceRequest');
+const SubscriptionPlan = require('./SubscriptionPlan');
 const Subscription = require('./Subscription');
 const CreditTransaction = require('./CreditTransaction');
 const SyncQueue = require('./SyncQueue');
+const Notification = require('./Notification');
 
 // Define all associations here (single source of truth)
 
@@ -52,6 +54,10 @@ Category.hasMany(ServiceRequest, { foreignKey: 'category_id', as: 'requests' });
 Review.belongsTo(ServiceRequest, { foreignKey: 'request_id', as: 'request' });
 ServiceRequest.hasMany(Review, { foreignKey: 'request_id', as: 'reviews' });
 
+// SubscriptionPlan <-> Subscription
+SubscriptionPlan.hasMany(Subscription, { foreignKey: 'plan_id', as: 'subscriptions' });
+Subscription.belongsTo(SubscriptionPlan, { foreignKey: 'plan_id', as: 'plan' });
+
 // Subscription belongs to ServiceProvider
 Subscription.belongsTo(ServiceProvider, { foreignKey: 'provider_id', as: 'provider' });
 ServiceProvider.hasMany(Subscription, { foreignKey: 'provider_id', as: 'subscriptions' });
@@ -59,6 +65,10 @@ ServiceProvider.hasMany(Subscription, { foreignKey: 'provider_id', as: 'subscrip
 // CreditTransaction belongs to ServiceProvider
 CreditTransaction.belongsTo(ServiceProvider, { foreignKey: 'provider_id', as: 'provider' });
 ServiceProvider.hasMany(CreditTransaction, { foreignKey: 'provider_id', as: 'creditTransactions' });
+
+// Notification belongs to User
+Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(Notification, { foreignKey: 'user_id', as: 'notifications' });
 
 module.exports = {
   User,
@@ -69,7 +79,9 @@ module.exports = {
   Review,
   VerificationBadge,
   ServiceRequest,
+  SubscriptionPlan,
   Subscription,
   CreditTransaction,
-  SyncQueue
+  SyncQueue,
+  Notification
 };

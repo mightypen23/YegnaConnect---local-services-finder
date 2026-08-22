@@ -7,6 +7,8 @@ const {
   listDirectory,
   updateProvider,
   setLocation,
+  submitVerificationBadge,
+  getProviderStats,
   ProviderError
 } = require('../services/providerService');
 
@@ -94,7 +96,9 @@ function sanitizePublicProvider(provider) {
     : null;
   return {
     id: p.id,
+    user_id: p.user_id,
     full_name: p.user?.full_name ?? null,
+    // Expose phone number as requested by user
     phone_number: p.user?.phone_number ?? null,
     bio: p.bio,
     trust_score: p.trust_score == null ? null : Number(p.trust_score),
@@ -121,6 +125,8 @@ function sanitizePublicProvider(provider) {
 }
 
 const createProviderValidators = [
+  body('full_name').optional().trim().notEmpty().withMessage('Full name cannot be empty'),
+  body('phone_number').optional().trim().isLength({ min: 7, max: 30 }).withMessage('Invalid phone number'),
   body('bio')
     .optional({ nullable: true })
     .trim()
@@ -142,7 +148,10 @@ const create = asyncHandler(async (req, res) => {
   if (!requireValid(req, res)) return;
   const provider = await createProvider(req.user, {
     bio: req.body.bio,
-    categories: req.body.categories
+    categories: req.body.categories,
+    location: req.body.location,
+    fullName: req.body.full_name,
+    phoneNumber: req.body.phone_number
   });
   res.status(201).json({ provider: sanitizeProvider(provider) });
 });
@@ -238,6 +247,22 @@ const setLocationHandler = asyncHandler(async (req, res) => {
   res.json({ provider: sanitizeProvider(provider) });
 });
 
+const submitVerificationHandler = asyncHandler(async (req, res) => {
+  const { badge_type, id_number, evidence, evidence_url } = req.body;
+  const evidenceText = evidence || (id_number ? `National ID / Kebele Card Number: ${id_number}` : 'Identity verification submitted');
+  const badge = await submitVerificationBadge(req.user.id, {
+    badgeType: badge_type || 'identity_verified',
+    evidence: evidenceText,
+    evidenceUrl: evidence_url
+  });
+  res.status(201).json({ badge });
+});
+
+const getProviderStatsHandler = asyncHandler(async (req, res) => {
+  const stats = await getProviderStats(req.user.id);
+  res.json({ stats });
+});
+
 module.exports = {
   createProviderValidators,
   getProviderValidators,
@@ -250,5 +275,7 @@ module.exports = {
   list,
   getMe,
   update,
-  setLocationHandler
+  setLocationHandler,
+  submitVerificationHandler,
+  getProviderStatsHandler
 };
