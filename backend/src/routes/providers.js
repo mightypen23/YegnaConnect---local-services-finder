@@ -12,7 +12,8 @@ const {
   getMe,
   update,
   setLocationHandler,
-  submitVerificationHandler
+  submitVerificationHandler,
+  getProviderStatsHandler
 } = require('../controllers/providerController');
 const { authenticate } = require('../middleware/auth');
 const { getTransactions: creditsHistory } = require('../controllers/creditController');
@@ -27,5 +28,6 @@ router.post('/me/verification', authenticate, submitVerificationHandler);
 router.get('/:id', getProviderValidators, getPublicOne);
 router.put('/:id', authenticate, updateValidators, update);
 router.put('/:id/location', authenticate, locationValidators, setLocationHandler);
+router.get('/me/stats', authenticate, getProviderStatsHandler);
 
 module.exports = router;

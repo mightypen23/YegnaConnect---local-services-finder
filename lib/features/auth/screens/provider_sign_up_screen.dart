@@ -44,23 +44,124 @@ class _ProviderSignUpScreenState extends ConsumerState<ProviderSignUpScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
-      await ref.read(authProvider.notifier).registerProvider(
+      final fullPhone = EthiopianPhoneField.fullNumber(_phoneController);
+      final devCode = await ref.read(authProvider.notifier).initiateProviderRegistration(
             fullName: _nameController.text.trim(),
             email: _emailController.text.trim(),
             password: _passwordController.text,
-            phoneNumber: _phoneController.text.trim(),
+            phoneNumber: fullPhone,
             location: _locationController.text.trim(),
-            bio: _descriptionController.text.trim(),
-            categoryId: _selectedCategory!,
           );
-      // Navigation to /provider-home is handled by the router's auth redirect.
+      
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _showOtpDialog(fullPhone, devCode);
     } on ApiException catch (e) {
       if (!mounted) return;
+      setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-    } finally {
-      if (mounted) setState(() => _submitting = false);
     }
   }
+
+  void _showOtpDialog(String phoneNumber, String? devCode) {
+    final codeController = TextEditingController();
+    bool verifying = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 30,
+                top: 24,
+                left: 24,
+                right: 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Verify your phone number',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.ink),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'We sent a 6-digit code to $phoneNumber',
+                    style: const TextStyle(color: AppTheme.muted, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (devCode != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Dev code: $devCode',
+                      style: const TextStyle(color: AppTheme.green, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  TextFormField(
+                    controller: codeController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    decoration: const InputDecoration(
+                      labelText: '6-Digit Verification Code',
+                      hintText: '123456',
+                      prefixIcon: Icon(Icons.security_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 50,
+                    child: FilledButton(
+                      onPressed: verifying
+                          ? null
+                          : () async {
+                              if (codeController.text.trim().length != 6) return;
+                              setModalState(() => verifying = true);
+                              try {
+                                await ref.read(authProvider.notifier).finalizeProviderRegistration(
+                                      phoneNumber: phoneNumber,
+                                      code: codeController.text.trim(),
+                                      fullName: _nameController.text.trim(),
+                                      location: _locationController.text.trim(),
+                                      bio: _descriptionController.text.trim(),
+                                      categoryId: _selectedCategory!,
+                                    );
+                                // Router handles navigation to provider dashboard on AuthState change
+                                if (ctx.mounted) Navigator.pop(ctx);
+                              } on ApiException catch (e) {
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(e.message)));
+                                }
+                                setModalState(() => verifying = false);
+                              }
+                            },
+                      child: verifying
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Text('Verify & Create Account', style: TextStyle(fontSize: 16)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -146,17 +247,9 @@ class _ProviderSignUpScreenState extends ConsumerState<ProviderSignUpScreen> {
                 const SizedBox(height: 14),
 
                 // Phone Number Field (Required)
-                AuthField(
-                  label: 'Phone number *',
-                  icon: Icons.phone_outlined,
-                  keyboardType: TextInputType.phone,
+                EthiopianPhoneField(
                   controller: _phoneController,
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) {
-                      return 'Phone number is required';
-                    }
-                    return null;
-                  },
+                  label: 'Phone number *',
                 ),
                 const SizedBox(height: 14),
 

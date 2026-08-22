@@ -33,6 +33,7 @@ class ServiceRequest {
   final String? customerImage;
   final String providerId;
   final String providerName;
+  final String? providerPhoneNumber;
   final String? providerImage;
   final String categoryId;
   final String serviceTitle;
@@ -53,6 +54,7 @@ class ServiceRequest {
     this.customerImage,
     required this.providerId,
     required this.providerName,
+    this.providerPhoneNumber,
     this.providerImage,
     required this.categoryId,
     required this.serviceTitle,
@@ -74,6 +76,7 @@ class ServiceRequest {
     String? customerImage,
     String? providerId,
     String? providerName,
+    String? providerPhoneNumber,
     String? providerImage,
     String? categoryId,
     String? serviceTitle,
@@ -117,6 +120,7 @@ class ServiceRequest {
       'customerImage': customerImage,
       'providerId': providerId,
       'providerName': providerName,
+      'providerPhoneNumber': providerPhoneNumber,
       'providerImage': providerImage,
       'categoryId': categoryId,
       'serviceTitle': serviceTitle,
@@ -140,6 +144,7 @@ class ServiceRequest {
       customerImage: json['customerImage'] as String?,
       providerId: json['providerId'] as String,
       providerName: json['providerName'] as String,
+      providerPhoneNumber: json['providerPhoneNumber'] as String?,
       providerImage: json['providerImage'] as String?,
       categoryId: json['categoryId'] as String,
       serviceTitle: json['serviceTitle'] as String,
@@ -194,6 +199,7 @@ class ServiceRequest {
       customerName: customer?['full_name'] as String? ?? 'Customer',
       providerId: json['provider_id'] as String? ?? '',
       providerName: providerUser?['full_name'] as String? ?? 'Unassigned',
+      providerPhoneNumber: providerUser?['phone_number'] as String? ?? '',
       categoryId: json['category_id'] as String,
       serviceTitle: category?['name'] as String? ?? 'Service Request',
       description: json['description'] as String? ?? '',

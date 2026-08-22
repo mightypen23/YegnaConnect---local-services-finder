@@ -43,10 +43,16 @@ class RequestRepository extends BaseRepository {
 
   /**
    * Paginated requests for a provider.
+   * Cancelled requests are excluded by default so they disappear from the
+   * provider's dashboard once the customer cancels them.
    */
   async findByProvider(providerId, { status, page = 1, limit = 20 } = {}) {
     const where = { provider_id: providerId };
-    if (status) where.status = status;
+    if (status) {
+      where.status = status;
+    } else {
+      where.status = { [Op.ne]: 'cancelled' };
+    }
 
     return this.paginate(where, {
       include: DEFAULT_INCLUDES,

@@ -9,7 +9,15 @@ import '../../../providers/auth_provider.dart';
 import 'auth_widgets.dart';
 
 class AuthForm extends ConsumerStatefulWidget {
-  const AuthForm({super.key, required this.title, required this.subtitle, required this.submit, required this.switchText, required this.switchRoute, this.signUp = false});
+  const AuthForm({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.submit,
+    required this.switchText,
+    required this.switchRoute,
+    this.signUp = false,
+  });
   final String title;
   final String subtitle;
   final String submit;
@@ -24,14 +32,16 @@ class _AuthFormState extends ConsumerState<AuthForm> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController(); // 9-digit suffix
   final _passwordController = TextEditingController();
-  bool visible = false;
+  bool _visible = false;
   bool _submitting = false;
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -41,18 +51,56 @@ class _AuthFormState extends ConsumerState<AuthForm> {
     setState(() => _submitting = true);
     try {
       if (widget.signUp) {
-        await ref.read(authProvider.notifier).register(
+        final fullPhone = EthiopianPhoneField.fullNumber(_phoneController);
+        final result = await ref.read(authProvider.notifier).registerWithPhone(
               fullName: _fullNameController.text.trim(),
               email: _emailController.text.trim(),
               password: _passwordController.text,
+              phoneNumber: fullPhone,
             );
+        if (!mounted) return;
+        // Show the dev code so the customer can test without real SMS
+        if (result.devCode != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Dev code: ${result.devCode}',
+                    style: const TextStyle(
+                      color: AppTheme.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Enter this 6-digit code on the verification screen',
+                    style: TextStyle(color: AppTheme.muted, fontSize: 13),
+                  ),
+                ],
+              ),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 10),
+            ),
+          );
+        }
+        // Navigate to OTP verification screen, passing phone and dev_code.
+        context.push(
+          '/sign-up-otp',
+          extra: {
+            'phoneNumber': result.phoneNumber,
+            'devCode': result.devCode,
+          },
+        );
       } else {
         await ref.read(authProvider.notifier).login(
               email: _emailController.text.trim(),
               password: _passwordController.text,
             );
+        // Navigation on success is handled by the router's auth redirect.
       }
-      // Navigation on success is handled by the router's auth redirect.
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -101,9 +149,14 @@ class _AuthFormState extends ConsumerState<AuthForm> {
                   },
                 ),
                 const SizedBox(height: 12),
+                // Phone field — only shown on sign-up
+                if (widget.signUp) ...[
+                  EthiopianPhoneField(controller: _phoneController),
+                  const SizedBox(height: 12),
+                ],
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: !visible,
+                  obscureText: !_visible,
                   validator: (val) {
                     if (val == null || val.isEmpty) return 'Password is required';
                     if (widget.signUp && val.length < 8) return 'Password must be at least 8 characters';
@@ -112,17 +165,34 @@ class _AuthFormState extends ConsumerState<AuthForm> {
                   decoration: InputDecoration(
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outline, size: 20),
-                    suffixIcon: IconButton(onPressed: () => setState(() => visible = !visible), icon: Icon(visible ? Icons.visibility_off_outlined : Icons.visibility_outlined)),
+                    suffixIcon: IconButton(
+                      onPressed: () => setState(() => _visible = !_visible),
+                      icon: Icon(_visible ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                    ),
                   ),
                 ),
-                if (!widget.signUp) Align(alignment: Alignment.centerRight, child: TextButton(onPressed: () => context.push('/forgot-password'), child: const Text('Forgot password?'))),
+                if (!widget.signUp)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => context.push('/forgot-password'),
+                      child: const Text('Forgot password?'),
+                    ),
+                  ),
                 const SizedBox(height: 16),
                 AuthButton(
                   label: _submitting ? 'Please wait...' : widget.submit,
                   onPressed: _submitting ? () {} : _submit,
                 ),
                 const SizedBox(height: 20),
-                const Row(children: [Expanded(child: Divider()), Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('OR', style: TextStyle(color: Colors.grey, fontSize: 12))), Expanded(child: Divider())]),
+                const Row(children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('OR', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  ),
+                  Expanded(child: Divider()),
+                ]),
                 const SizedBox(height: 20),
                 AuthButton(
                   label: 'Continue with Google',
@@ -133,7 +203,12 @@ class _AuthFormState extends ConsumerState<AuthForm> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                Center(child: TextButton(onPressed: () => context.go(widget.switchRoute), child: Text(widget.switchText))),
+                Center(
+                  child: TextButton(
+                    onPressed: () => context.go(widget.switchRoute),
+                    child: Text(widget.switchText),
+                  ),
+                ),
               ],
             ),
           ),

@@ -119,6 +119,12 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                     _DetailRow(icon: Icons.handyman_outlined, title: 'Provider', value: request.providerName),
                     const SizedBox(height: 8),
                     _DetailRow(icon: Icons.location_on_outlined, title: 'Location', value: request.location),
+                    if (request.isUnlockedByProvider)
+                      _DetailRow(
+                        icon: Icons.phone_outlined,
+                        title: 'Phone',
+                        value: request.providerPhoneNumber ?? '',
+                      ),
                   ],
                 ),
               ),

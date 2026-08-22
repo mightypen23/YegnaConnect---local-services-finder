@@ -11,14 +11,12 @@ import '../features/auth/screens/sign_in_screen.dart';
 import '../features/auth/screens/sign_up_screen.dart';
 import '../features/auth/screens/provider_sign_up_screen.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
+import '../features/auth/screens/customer_otp_screen.dart';
 import '../features/home/screens/customer_home_screen.dart';
 import '../features/search/screens/search_screen.dart';
 import '../features/provider_detail/screens/provider_detail_screen.dart';
-import '../features/bookings/screens/create_booking_screen.dart';
 import '../features/bookings/screens/booking_history_screen.dart';
 import '../features/bookings/screens/request_detail_screen.dart';
-import '../features/chat/screens/chat_list_screen.dart';
-import '../features/chat/screens/chat_conversation_screen.dart';
 import '../features/profile/screens/customer_profile_screen.dart';
 import '../features/profile/screens/customer_profile_edit_screen.dart';
 import '../features/profile/screens/provider_profile_edit_screen.dart';
@@ -34,9 +32,27 @@ const _authRoutes = {
   '/landing',
   '/sign-in',
   '/sign-up',
+  '/sign-up-otp',
   '/provider-sign-up',
   '/forgot-password',
 };
+
+// Routes reserved for provider accounts. Customers are redirected to /home.
+const _providerOnlyRoutes = {
+  '/provider-home',
+  '/wallet',
+  '/buy-credits',
+  '/provider-verification',
+  '/provider-profile-edit',
+};
+
+// Route prefixes reserved for customer accounts (browsing and booking).
+// Providers are redirected to their dashboard.
+bool _isCustomerOnlyRoute(String location) {
+  return location.startsWith('/home') ||
+      location.startsWith('/search') ||
+      location.startsWith('/provider-detail');
+}
 
 // Notifies GoRouter to re-evaluate its redirect whenever auth status changes.
 class _AuthRefreshNotifier extends ChangeNotifier {
@@ -68,9 +84,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (authState.status == AuthStatus.authenticated) {
+        final role = ref.read(userProvider).role;
+        final location = state.matchedLocation;
+        final isAuthRoute = _authRoutes.contains(location);
+
         if (isAuthRoute) {
-          final role = ref.read(userProvider).role;
           return role == UserRole.provider ? '/provider-home' : '/home';
+        }
+
+        // Keep each role inside its own area of the app.
+        if (role == UserRole.provider) {
+          if (_isCustomerOnlyRoute(location)) return '/provider-home';
+        } else if (_providerOnlyRoutes.contains(location)) {
+          return '/home';
         }
         return null;
       }
@@ -106,6 +132,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       path: '/forgot-password',
       builder: (context, state) => const ForgotPasswordScreen(),
     ),
+    GoRoute(
+      path: '/sign-up-otp',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return CustomerOtpScreen(
+          phoneNumber: extra['phoneNumber'] as String? ?? '',
+          devCode: extra['devCode'] as String?,
+        );
+      },
+    ),
 
     // Bottom Navigation Shell Route
     ShellRoute(
@@ -120,10 +156,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           builder: (context, state) => const SearchScreen(),
         ),
         GoRoute(
-          path: '/chat',
-          builder: (context, state) => const ChatListScreen(),
-        ),
-        GoRoute(
           path: '/history',
           builder: (context, state) => const BookingHistoryScreen(),
         ),
@@ -134,11 +166,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ],
     ),
 
-    // Sub-Routes & Provider Screens
-    ShellRoute(
-      builder: (context, state, child) => MainNavigationShell(child: child),
-      routes: [GoRoute(path: '/provider-home', builder: (context, state) => const ProviderHomeScreen())],
-    ),
+    // Provider Dashboard (own layout, no customer bottom navigation)
+    GoRoute(path: '/provider-home', builder: (context, state) => const ProviderHomeScreen()),
     GoRoute(
       path: '/provider-detail/:id',
       builder: (context, state) {
@@ -147,21 +176,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       },
     ),
     GoRoute(
-      path: '/create-booking',
-      builder: (context, state) => const CreateBookingScreen(),
-    ),
-    GoRoute(
       path: '/request-detail/:id',
       builder: (context, state) {
         final requestId = state.pathParameters['id'] ?? 'req_101';
         return RequestDetailScreen(requestId: requestId);
-      },
-    ),
-    GoRoute(
-      path: '/chat-conversation/:providerId',
-      builder: (context, state) {
-        final providerId = state.pathParameters['providerId'] ?? 'prov_1';
-        return ChatConversationScreen(providerId: providerId);
       },
     ),
     GoRoute(

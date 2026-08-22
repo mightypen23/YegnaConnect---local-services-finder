@@ -95,20 +95,52 @@ function compareCodes(provided, stored) {
   }
 }
 
-async function register(full_name, email, password) {
+async function register(full_name, email, password, phone_number) {
   const existing = await User.findOne({ where: { email } });
   if (existing) {
     throw new AuthError(409, 'An account with this email already exists');
   }
 
   const password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+  // If a phone number was provided the account starts unverified and
+  // the caller must complete OTP verification before using the app.
+  let phone = null;
+  if (phone_number) {
+    phone = normalizePhone(phone_number);
+    if (!PHONE_REGEX.test(phone)) {
+      throw new AuthError(400, 'Invalid phone number. Use Ethiopian format e.g. 0912345678 or +251912345678');
+    }
+    const phoneExists = await User.findOne({ where: { phone_number: phone } });
+    if (phoneExists) {
+      throw new AuthError(409, 'An account with this phone number already exists');
+    }
+  }
+
+  const code = phone ? generateCode() : null;
+  let smsResult = null;
+
+  if (phone) {
+    try {
+      smsResult = await sendOtp(phone, code);
+    } catch {
+      throw new AuthError(502, 'Could not send the verification code. Please try again.');
+    }
+  }
+
   const user = await User.create({
     full_name,
     email,
     password_hash,
-    is_verified: true
+    phone_number: phone || null,
+    is_verified: !phone, // verified immediately if no phone, else await OTP
+    verification_code: code,
+    verification_code_expires: phone ? expiresAt() : null,
+    verification_attempts: 0
   });
-  return user;
+
+  // Return dev_code always — SMS is mocked so the Flutter screen auto-fills it.
+  return { user, devCode: code };
 }
 
 async function login(email, password) {
@@ -127,19 +159,20 @@ function issueToken(user) {
   return signToken(user);
 }
 
-async function updateProfile(userId, updates) {
+async function updateProfile(userId, { full_name, phone_number, location }) {
   const user = await User.findByPk(userId);
-  if (!user) {
-    throw new AuthError(404, 'User not found');
-  }
-  const allowed = ['full_name', 'phone_number', 'location'];
-  for (const key of allowed) {
-    if (updates[key] !== undefined) {
-      user[key] = updates[key];
-    }
-  }
+  if (!user) throw new AuthError(404, 'User not found');
+  if (full_name !== undefined) user.full_name = full_name;
+  if (phone_number !== undefined) user.phone_number = normalizePhone(phone_number);
+  if (location !== undefined) user.location = location;
   await user.save();
   return user;
 }
 
-module.exports = { requestOtp, verifyOtp, register, login, issueToken, updateProfile, AuthError };
+async function deleteAccount(userId) {
+  const user = await User.findByPk(userId);
+  if (!user) throw new AuthError(404, 'User not found');
+  await user.destroy();
+}
+
+module.exports = { requestOtp, verifyOtp, register, login, issueToken, updateProfile, deleteAccount, AuthError };

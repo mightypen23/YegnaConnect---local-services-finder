@@ -69,12 +69,12 @@ const getSummary = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/credits/purchase
- * Buy credit top-up packages (50 birr = 100 credits each).
+ * Buy credits with a custom amount chosen by the provider.
  */
 const purchaseCredits = asyncHandler(async (req, res) => {
   const providerId = await resolveProviderId(req);
-  const packages = parseInt(req.body.packages, 10) || 1;
-  const result = await creditService.purchaseCredits(providerId, packages);
+  const credits = parseInt(req.body.credits, 10) || 0;
+  const result = await creditService.purchaseCredits(providerId, credits);
   res.status(201).json({ data: result });
 });
 

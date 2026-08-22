@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
 import '../../../providers/app_providers.dart';
 import '../../../models/provider_model.dart';
+import '../../../models/user_model.dart';
 
 class ProviderDetailScreen extends ConsumerWidget {
   const ProviderDetailScreen({
@@ -24,6 +25,8 @@ class ProviderDetailScreen extends ConsumerWidget {
       (p) => p.id == providerId,
       orElse: () => providers.first,
     );
+
+    final user = ref.watch(userProvider);
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -139,116 +142,45 @@ class ProviderDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
 
+                  // Profession Box
+                  _InfoCard(
+                    icon: Icons.work_outline,
+                    text: provider.services.isEmpty
+                        ? 'Service Provider'
+                        : provider.services.join(', '),
+                  ),
+                  const SizedBox(height: 12),
+
                   // Location Box
                   _InfoCard(
                     icon: Icons.location_on_outlined,
                     text: provider.location,
                   ),
-                  const SizedBox(height: 12),
-
-                  // Phone Box
-                  _InfoCard(
-                    icon: Icons.phone_outlined,
-                    text: provider.phoneNumber,
-                  ),
-                  const SizedBox(height: 20),
-
-                  const Text(
-                    'Services',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      fontStyle: FontStyle.italic,
-                      color: AppTheme.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Services Tags Grid (2 columns)
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 2.8,
-                    ),
-                    itemCount: provider.services.length,
-                    itemBuilder: (context, index) {
-                      final service = provider.services[index];
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFEFF2F6)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.handyman_outlined, color: AppTheme.blue, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                service,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  fontStyle: FontStyle.italic,
-                                  color: AppTheme.ink,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
                   const SizedBox(height: 28),
 
-                  // Action Buttons: Chat & Book Now
-                  Row(
-                    children: [
-                      Container(
-                        height: 54,
-                        width: 58,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF4F7F9),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.border),
+                  // Action Buttons: Order (customers only)
+                  if (user.role != UserRole.provider)
+                    SizedBox(
+                      height: 54,
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => _handleBookingRequest(context, ref, provider),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.greenLight,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
-                        child: IconButton(
-                          onPressed: () => context.push('/chat-conversation/${provider.id}'),
-                          icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppTheme.ink, size: 24),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: SizedBox(
-                          height: 54,
-                          child: FilledButton(
-                            onPressed: () => _handleBookingRequest(context, ref, provider),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppTheme.greenLight,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: const Text(
-                              'Book Now',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
+                        child: const Text(
+                          'Order',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
                 ],
               ),
             ),

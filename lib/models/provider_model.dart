@@ -17,7 +17,10 @@ class ProviderModel {
   final List<String> categoryIds;
   final bool isVerified;
   final VerificationStatus verificationStatus;
-  final double distanceKm;
+
+  /// Straight-line distance to the user in km, computed at runtime from the
+  /// device position. Null when the user's location is unknown.
+  final double? distanceKm;
   final double latitude;
   final double longitude;
 
@@ -38,7 +41,7 @@ class ProviderModel {
     this.categoryIds = const [],
     this.isVerified = true,
     this.verificationStatus = VerificationStatus.verified,
-    this.distanceKm = 1.5,
+    this.distanceKm,
     this.latitude = 9.0192,
     this.longitude = 38.7525,
   });

@@ -9,16 +9,38 @@ import '../../../providers/wallet_provider.dart';
 import '../../../models/service_request.dart';
 import '../../wallet/widgets/unlock_request_dialog.dart';
 
-class ProviderHomeScreen extends ConsumerWidget {
+class ProviderHomeScreen extends ConsumerStatefulWidget {
   const ProviderHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProviderHomeScreen> createState() => _ProviderHomeScreenState();
+}
+
+class _ProviderHomeScreenState extends ConsumerState<ProviderHomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh dashboard data on open so new customer orders,
+    // notifications, and credit stats appear without a restart.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(serviceRequestsProvider.notifier).refresh();
+      ref.read(providerStatsProvider.notifier).refresh();
+      ref.read(notificationsProvider.notifier).refresh();
+      ref.invalidate(providerVerificationStatusProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(userProvider);
     final wallet = ref.watch(walletProvider);
-    final requests = ref.watch(serviceRequestsProvider);
+    final stats = ref.watch(providerStatsProvider);
     final notifications = ref.watch(notificationsProvider);
+    final verificationStatus = ref.watch(providerVerificationStatusProvider).value;
     final unreadCount = notifications.where((n) => !n.isRead).length;
+    // Cancelled orders never show on the provider dashboard.
+    final requests =
+        ref.watch(serviceRequestsProvider).where((r) => r.status != RequestStatus.cancelled).toList();
 
     return Scaffold(
       body: SafeArea(
@@ -47,13 +69,30 @@ class ProviderHomeScreen extends ConsumerWidget {
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.ink),
                             ),
                             const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppTheme.green.withValues(alpha: .15),
-                                borderRadius: BorderRadius.circular(10),
+                            GestureDetector(
+                              onTap: () async {
+                                await context.push('/provider-verification');
+                                ref.invalidate(providerVerificationStatusProvider);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: verificationStatus == 'verified'
+                                      ? AppTheme.green.withValues(alpha: .15)
+                                      : Colors.orange.withValues(alpha: .15),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  verificationStatus == 'verified' ? 'Verified' : 'Not Verified',
+                                  style: TextStyle(
+                                    color: verificationStatus == 'verified'
+                                        ? AppTheme.green
+                                        : Colors.orange,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                              child: const Text('Verified', style: TextStyle(color: AppTheme.green, fontSize: 10, fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),
@@ -203,11 +242,29 @@ class ProviderHomeScreen extends ConsumerWidget {
               // 3 Quick Stats Pills
               Row(
                 children: [
-                  Expanded(child: _ProviderStatCard(title: 'Completed', value: '89', icon: Icons.check_circle_outline)),
+                  Expanded(
+                    child: _ProviderStatCard(
+                      title: 'Completed',
+                      value: stats?.completedJobs.toString() ?? '0',
+                      icon: Icons.check_circle_outline,
+                    ),
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: _ProviderStatCard(title: 'Active Jobs', value: '2', icon: Icons.work_outline)),
+                  Expanded(
+                    child: _ProviderStatCard(
+                      title: 'Active Jobs',
+                      value: stats?.activeJobs.toString() ?? '0',
+                      icon: Icons.work_outline,
+                    ),
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: _ProviderStatCard(title: 'Wallet Cr', value: '${wallet.creditBalance}', icon: Icons.stars_outlined)),
+                  Expanded(
+                    child: _ProviderStatCard(
+                      title: 'Wallet Cr',
+                      value: '${wallet.creditBalance}',
+                      icon: Icons.stars_outlined,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -292,7 +349,7 @@ class _ProviderRequestCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                request.serviceTitle,
+                request.customerName,
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.ink),
               ),
               Container(
@@ -340,7 +397,7 @@ class _ProviderRequestCard extends ConsumerWidget {
                   );
                 },
                 icon: const Icon(Icons.lock_open_rounded, size: 18),
-                label: Text('Unlock Contact Details (${request.unlockCreditCost} Credits)'),
+                label: const Text('Unlock To Enable Customers To Contact You'),
               ),
             )
           else
@@ -348,7 +405,7 @@ class _ProviderRequestCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => context.push('/chat-conversation/${request.providerId}'),
+                    onPressed: () => context.push('/chat-conversation/${request.id}'),
                     icon: const Icon(Icons.chat_bubble_outline, size: 18),
                     label: const Text('Chat Customer'),
                   ),

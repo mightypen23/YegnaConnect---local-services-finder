@@ -46,13 +46,10 @@ async function sendSms(phone, text) {
 
 async function sendOtp(phone, code) {
   const text = `Your YegnaConnect verification code is ${code}. It expires in 5 minutes.`;
-
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[MOCK SMS] To ${phone}: ${text}`);
-    return { delivered: true, mock: true };
-  }
-
-  return sendSms(phone, text);
+  // DEV MODE: SMS sending is disabled. Code is returned in the API response
+  // and pre-filled on the OTP screen automatically.
+  console.log(`[DEV SMS] To ${phone}: ${text}`);
+  return { delivered: true, mock: true };
 }
 
 module.exports = { sendOtp, sendSms, SmsError };

@@ -1,11 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import '../core/network/api_client.dart';
 import '../models/user_model.dart';
 import '../models/provider_model.dart';
 import '../models/category.dart';
 import '../models/service_request.dart';
 import '../models/notification_model.dart';
+import '../models/chat_message.dart';
 import 'network_providers.dart';
 
 // Current User State Provider
@@ -33,11 +35,6 @@ class UserNotifier extends StateNotifier<UserModel> {
       location: location,
       role: role,
     );
-  }
-
-  void toggleRole() {
-    final nextRole = state.role == UserRole.customer ? UserRole.provider : UserRole.customer;
-    state = state.copyWith(role: nextRole);
   }
 
   // Replaces the in-memory user with the authenticated backend profile.
@@ -103,6 +100,34 @@ final maxDistanceProvider = StateProvider<double>((ref) => 50.0);
 final minRatingProvider = StateProvider<double>((ref) => 0.0);
 final verifiedOnlyProvider = StateProvider<bool>((ref) => false);
 
+// User's current position, or null when location services are off or
+// permission is denied. Used to compute real distances to providers.
+final userPositionProvider = FutureProvider<Position?>((ref) async {
+  if (!await Geolocator.isLocationServiceEnabled()) return null;
+  var permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+  }
+  if (permission == LocationPermission.denied ||
+      permission == LocationPermission.deniedForever) {
+    return null;
+  }
+  return Geolocator.getCurrentPosition();
+});
+
+// Straight-line distance in km between the user and a provider, or null when
+// the user's position is unknown.
+double? providerDistanceKm(Position? user, ProviderModel provider) {
+  if (user == null) return null;
+  final meters = Geolocator.distanceBetween(
+    user.latitude,
+    user.longitude,
+    provider.latitude,
+    provider.longitude,
+  );
+  return meters / 1000;
+}
+
 // Filtered Providers Provider
 final filteredProvidersProvider = Provider<List<ProviderModel>>((ref) {
   final providers = ref.watch(providerSearchProvider);
@@ -111,6 +136,7 @@ final filteredProvidersProvider = Provider<List<ProviderModel>>((ref) {
   final maxDistance = ref.watch(maxDistanceProvider);
   final minRating = ref.watch(minRatingProvider);
   final verifiedOnly = ref.watch(verifiedOnlyProvider);
+  final position = ref.watch(userPositionProvider).value;
 
   return providers.where((p) {
     final matchesQuery = query.isEmpty ||
@@ -121,7 +147,10 @@ final filteredProvidersProvider = Provider<List<ProviderModel>>((ref) {
         category.isEmpty ||
         p.services.any((s) => s.toLowerCase() == category.toLowerCase());
 
-    final matchesDistance = p.distanceKm <= maxDistance;
+    // The distance filter only applies when a real distance can be computed;
+    // providers remain visible while the user's location is unknown.
+    final distanceKm = providerDistanceKm(position, p);
+    final matchesDistance = distanceKm == null || distanceKm <= maxDistance;
     final matchesRating = p.rating >= minRating;
     final matchesVerified = !verifiedOnly || p.isVerified;
 
@@ -176,6 +205,8 @@ class ServiceRequestsNotifier extends StateNotifier<List<ServiceRequest>> {
       });
       final request = ServiceRequest.fromApiJson(response.data['data'] as Map<String, dynamic>);
       state = [request, ...state];
+      // Refresh notifications so the provider sees the new order notification.
+      _ref.read(notificationsProvider.notifier).refresh();
     } on DioException catch (e) {
       throw ApiClient.toApiException(e);
     }
@@ -312,6 +343,88 @@ class NotificationsNotifier extends StateNotifier<List<AppNotification>> {
     }
   }
 }
+
+// Admin verification status of the signed-in provider
+// ('pending' | 'verified' | 'rejected', or null when unavailable).
+final providerVerificationStatusProvider = FutureProvider<String?>((ref) async {
+  final api = ref.watch(apiClientProvider);
+  try {
+    final response = await api.dio.get('/providers/me');
+    return response.data['provider']?['verification_status'] as String?;
+  } catch (_) {
+    return null;
+  }
+});
+
+// Provider Dashboard Stats Provider
+class ProviderStatsNotifier extends StateNotifier<ProviderStats?> {
+  ProviderStatsNotifier(this._ref) : super(null) {
+    _fetchStats();
+  }
+
+  final Ref _ref;
+
+  Future<void> _fetchStats() async {
+    final api = _ref.read(apiClientProvider);
+    try {
+      final response = await api.dio.get('/providers/me/stats');
+      final statsData = response.data['stats'] as Map<String, dynamic>;
+      state = ProviderStats(
+        completedJobs: statsData['completedJobs'] as int? ?? 0,
+        activeJobs: statsData['activeJobs'] as int? ?? 0,
+        pendingLeads: statsData['pendingLeads'] as int? ?? 0,
+      );
+    } catch (_) {
+      // Keep null state; UI handles missing stats gracefully
+    }
+  }
+
+  void refresh() => _fetchStats();
+}
+
+final providerStatsProvider = StateNotifierProvider<ProviderStatsNotifier, ProviderStats?>((ref) {
+  return ProviderStatsNotifier(ref);
+});
+
+class ProviderStats {
+  const ProviderStats({
+    required this.completedJobs,
+    required this.activeJobs,
+    required this.pendingLeads,
+  });
+
+  final int completedJobs;
+  final int activeJobs;
+  final int pendingLeads;
+}
+
+// Chat Provider - fetches real conversations from backend
+class ChatConversationsNotifier extends StateNotifier<List<ChatConversation>> {
+  ChatConversationsNotifier(this._ref) : super(const []) {
+    refresh();
+  }
+
+  final Ref _ref;
+
+  Future<void> refresh() async {
+    final api = _ref.read(apiClientProvider);
+    try {
+      final response = await api.dio.get('/chat/conversations');
+      final conversations = (response.data['data'] as List<dynamic>?)
+              ?.map((json) => ChatConversation.fromJson(json as Map<String, dynamic>))
+              .toList() ?? [];
+      state = conversations;
+    } catch (_) {
+      // Backend not implemented yet; keep empty state
+      state = const [];
+    }
+  }
+}
+
+final chatConversationsProvider =
+    StateNotifierProvider<ChatConversationsNotifier, List<ChatConversation>>((ref) {
+  return ChatConversationsNotifier(ref);
+});
 
 final notificationsProvider =
     StateNotifierProvider<NotificationsNotifier, List<AppNotification>>((ref) {

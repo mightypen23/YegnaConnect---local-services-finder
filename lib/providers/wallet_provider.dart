@@ -60,12 +60,11 @@ class WalletNotifier extends StateNotifier<ProviderWallet> {
     );
   }
 
-  // Buys a credit top-up package (backend enforces 50 birr = 100 credits per package).
-  Future<void> purchaseCredits(CreditPackage package) async {
+  // Buys credits with a custom amount chosen by the provider.
+  Future<void> purchaseCredits(int credits) async {
     final api = _ref.read(apiClientProvider);
-    final packages = (package.credits / 100).round();
     try {
-      await api.dio.post('/credits/purchase', data: {'packages': packages});
+      await api.dio.post('/credits/purchase', data: {'credits': credits});
       await refresh();
     } on DioException catch (e) {
       throw ApiClient.toApiException(e);

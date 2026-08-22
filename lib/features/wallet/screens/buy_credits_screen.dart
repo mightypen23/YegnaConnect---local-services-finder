@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/network/api_client.dart';
-import '../../../models/wallet_model.dart';
 import '../../../providers/wallet_provider.dart';
 
 class BuyCreditsScreen extends ConsumerStatefulWidget {
@@ -14,8 +14,35 @@ class BuyCreditsScreen extends ConsumerStatefulWidget {
 }
 
 class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
-  CreditPackage _selectedPackage = CreditPackage.defaultPackages[1];
+  final _creditController = TextEditingController(text: '100');
   String _selectedPaymentMethod = 'Telebirr';
+
+  // Rate: 100 credits = 50 ETB  →  1 credit = 0.5 ETB
+  static const double _etbPerCredit = 0.5;
+  static const int _minCredits = 10;
+
+  int get _credits => int.tryParse(_creditController.text) ?? 0;
+  double get _costEtb => _credits * _etbPerCredit;
+  bool get _isValid => _credits >= _minCredits;
+
+  @override
+  void initState() {
+    super.initState();
+    _creditController.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _creditController.dispose();
+    super.dispose();
+  }
+
+  void _setQuickAmount(int amount) {
+    _creditController.text = amount.toString();
+    _creditController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _creditController.text.length),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,118 +98,116 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
+              // Enter Credits Section
               const Text(
-                'Select YC Coin Package',
+                'Enter YC Coins Amount',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.ink),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Choose how many YC Coins you want to buy (min $_minCredits)',
+                style: const TextStyle(color: AppTheme.muted, fontSize: 13),
               ),
               const SizedBox(height: 14),
 
-              // Credit Packages List
-              RadioGroup<String>(
-                groupValue: _selectedPackage.id,
-                onChanged: (packageId) {
-                  if (packageId != null) {
-                    setState(() {
-                      _selectedPackage = CreditPackage.defaultPackages.firstWhere(
-                        (package) => package.id == packageId,
-                      );
-                    });
-                  }
-                },
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: CreditPackage.defaultPackages.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                  final pkg = CreditPackage.defaultPackages[index];
-                  final isSelected = _selectedPackage.id == pkg.id;
-
-                  return InkWell(
-                    onTap: () => setState(() => _selectedPackage = pkg),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected ? AppTheme.green : const Color(0xFFEFF2F6),
-                          width: isSelected ? 2 : 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: .02),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+              // Credit Amount Input
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: _isValid ? AppTheme.green : const Color(0xFFEFF2F6), width: _isValid ? 2 : 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _creditController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.ink,
+                        letterSpacing: 2,
                       ),
-                      child: Row(
-                        children: [
-                          Radio<String>(
-                            value: pkg.id,
-                            activeColor: AppTheme.green,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      pkg.name,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.ink),
-                                    ),
-                                    if (pkg.badge != null) ...[
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.green.withValues(alpha: .15),
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                        child: Text(
-                                          pkg.badge!,
-                                          style: const TextStyle(color: AppTheme.green, fontSize: 10, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  pkg.description,
-                                  style: const TextStyle(color: AppTheme.muted, fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '${pkg.credits} YC Coins',
-                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: AppTheme.green),
-                              ),
-                              Text(
-                                '${pkg.priceEtb.toInt()} ETB',
-                                style: const TextStyle(color: AppTheme.muted, fontSize: 12, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ],
+                      decoration: InputDecoration(
+                        hintText: '100',
+                        hintStyle: TextStyle(color: AppTheme.muted.withValues(alpha: .4), fontSize: 36, fontWeight: FontWeight.w900),
+                        suffixText: 'YC Coins',
+                        suffixStyle: const TextStyle(color: AppTheme.muted, fontSize: 14, fontWeight: FontWeight.w600),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       ),
                     ),
-                  );
-                  },
+                    const Divider(height: 1, color: Color(0xFFEFF2F6)),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.payments_outlined, size: 18, color: AppTheme.green),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cost: ${_costEtb.toStringAsFixed(_costEtb == _costEtb.roundToDouble() ? 0 : 2)} ETB',
+                          style: const TextStyle(
+                            color: AppTheme.green,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (!_isValid && _creditController.text.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Minimum $_minCredits credits required',
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
+              // Quick Pick Chips
+              const Text(
+                'Quick Pick',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.muted),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [50, 100, 200, 500, 1000].map((amount) {
+                  final isSelected = _credits == amount;
+                  return ActionChip(
+                    label: Text('$amount'),
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : AppTheme.ink,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    backgroundColor: isSelected ? AppTheme.green : const Color(0xFFF4F6F9),
+                    side: BorderSide(
+                      color: isSelected ? AppTheme.green : const Color(0xFFE0E4EB),
+                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onPressed: () => _setQuickAmount(amount),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 28),
+
+              // Payment Method
               const Text(
                 'Payment Method',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.ink),
@@ -215,15 +240,18 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
                 width: double.infinity,
                 height: 54,
                 child: FilledButton(
-                  onPressed: () => _processMockPayment(context, ref),
+                  onPressed: _isValid ? () => _processPayment(context, ref) : null,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppTheme.greenLight,
+                    disabledBackgroundColor: AppTheme.muted.withValues(alpha: .2),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   child: Text(
-                    'Pay ${_selectedPackage.priceEtb.toInt()} ETB & Get ${_selectedPackage.credits} YC Coins',
+                    _isValid
+                        ? 'Pay ${_costEtb.toStringAsFixed(_costEtb == _costEtb.roundToDouble() ? 0 : 2)} ETB & Get $_credits YC Coins'
+                        : 'Enter Credit Amount',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
@@ -235,7 +263,10 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
     );
   }
 
-  Future<void> _processMockPayment(BuildContext context, WidgetRef ref) async {
+  Future<void> _processPayment(BuildContext context, WidgetRef ref) async {
+    final credits = _credits;
+    final costEtb = _costEtb;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -245,7 +276,7 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
     );
 
     try {
-      await ref.read(walletProvider.notifier).purchaseCredits(_selectedPackage);
+      await ref.read(walletProvider.notifier).purchaseCredits(credits);
     } on ApiException catch (e) {
       if (!context.mounted) return;
       Navigator.pop(context); // Close loader
@@ -271,7 +302,7 @@ class _BuyCreditsScreenState extends ConsumerState<BuyCreditsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '${_selectedPackage.credits} credits have been added to your wallet via $_selectedPaymentMethod.',
+              '$credits YC Coins have been added to your wallet via $_selectedPaymentMethod for ${costEtb.toStringAsFixed(costEtb == costEtb.roundToDouble() ? 0 : 2)} ETB.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppTheme.muted, fontSize: 13),
             ),

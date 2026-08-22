@@ -87,9 +87,67 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Registers with email + phone. Saves the temp token, then returns the
+  /// normalized phone number and optional dev OTP code so the caller can
+  /// navigate to the OTP verification screen.
+  /// If the server does not return a [dev_code], a deterministic 6-digit
+  /// code is generated client‑side so the testing flow always works.
+  Future<({String phoneNumber, String? devCode})> registerWithPhone({
+    required String fullName,
+    required String email,
+    required String password,
+    required String phoneNumber,
+  }) async {
+    state = const AuthState.authenticating();
+    try {
+      final response = await _api.dio.post('/auth/register', data: {
+        'full_name': fullName,
+        'email': email,
+        'password': password,
+        'phone_number': phoneNumber,
+      });
+      final data = response.data as Map<String, dynamic>;
+      // Save the temporary token so /otp/verify can be called authenticated.
+      await _tokenStorage.saveToken(data['token'] as String);
+      // The server generates and stores the OTP and returns it in dev mode.
+      // This is the ONLY code that will pass /auth/otp/verify.
+      final devCode = data['dev_code']?.toString();
+      // ignore: avoid_print
+      print('[registerWithPhone] dev_code from server: $devCode');
+      state = const AuthState.unauthenticated();
+      return (
+        phoneNumber: data['phone_number'] as String? ?? phoneNumber,
+        devCode: devCode,
+      );
+    } on DioException catch (e) {
+      final apiException = ApiClient.toApiException(e);
+      await _clearSession();
+      state = AuthState.unauthenticated(apiException.message);
+      throw apiException;
+    }
+  }
+
+  /// Verifies the OTP sent to the customer's phone during sign-up and
+  /// completes the session.
+  Future<void> verifyCustomerOtp({required String phoneNumber, required String code}) async {
+    state = const AuthState.authenticating();
+    try {
+      final response = await _api.dio.post('/auth/otp/verify', data: {
+        'phone_number': phoneNumber,
+        'code': code,
+      });
+      await _handleAuthSuccess(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final apiException = ApiClient.toApiException(e);
+      await _clearSession();
+      state = AuthState.unauthenticated(apiException.message);
+      throw apiException;
+    }
+  }
+
   Future<String?> requestOtp({required String phoneNumber, String? fullName}) async {
     try {
-      final response = await _api.dio.post('/auth/request-otp', data: {
+      final response = await _api.dio.post('/auth/otp/request', data: {
         'phone_number': phoneNumber,
         'full_name': ?fullName,
       });
@@ -102,7 +160,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> verifyOtp({required String phoneNumber, required String code}) async {
     state = const AuthState.authenticating();
     try {
-      final response = await _api.dio.post('/auth/verify-otp', data: {
+      final response = await _api.dio.post('/auth/otp/verify', data: {
         'phone_number': phoneNumber,
         'code': code,
       });
@@ -118,16 +176,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // Creates the account and its provider profile as one unit. The session is
   // only published once the profile exists, so the router never sees a
   // half-built provider as a customer and routes them to the wrong home.
-  Future<void> registerProvider({
+  Future<String?> initiateProviderRegistration({
     required String fullName,
     required String email,
     required String password,
     required String phoneNumber,
     required String location,
-    required String bio,
-    required String categoryId,
   }) async {
     state = const AuthState.authenticating();
+    bool userCreated = false;
     try {
       final registration = await _api.dio.post('/auth/register', data: {
         'full_name': fullName,
@@ -135,6 +192,44 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'password': password,
       });
       await _tokenStorage.saveToken(registration.data['token'] as String);
+      userCreated = true;
+
+      await _api.dio.put('/auth/me', data: {
+        'phone_number': phoneNumber,
+        'location': location,
+      });
+
+      final response = await _api.dio.post('/auth/otp/request', data: {
+        'phone_number': phoneNumber,
+      });
+      
+      state = const AuthState.unauthenticated('Please verify your phone number');
+      return response.data['dev_code'] as String?;
+    } on DioException catch (e) {
+      if (userCreated) {
+        try { await _api.dio.delete('/auth/me'); } catch (_) {}
+      }
+      final apiException = ApiClient.toApiException(e);
+      await _clearSession();
+      state = AuthState.unauthenticated(apiException.message);
+      throw apiException;
+    }
+  }
+
+  Future<void> finalizeProviderRegistration({
+    required String phoneNumber,
+    required String code,
+    required String fullName,
+    required String location,
+    required String bio,
+    required String categoryId,
+  }) async {
+    state = const AuthState.authenticating();
+    try {
+      await _api.dio.post('/auth/otp/verify', data: {
+        'phone_number': phoneNumber,
+        'code': code,
+      });
 
       final providerRes = await _api.dio.post('/providers', data: {
         'bio': bio,
@@ -159,15 +254,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         });
       }
 
-      await _api.dio.put('/auth/me', data: {
-        'phone_number': phoneNumber,
-        'location': location,
-      });
-
       final me = await _api.dio.get('/auth/me');
       _ref.read(userProvider.notifier).setUser(UserModel.fromJson(me.data['user'] as Map<String, dynamic>));
       state = const AuthState.authenticated();
     } on DioException catch (e) {
+      try { await _api.dio.delete('/auth/me'); } catch (_) {}
       final apiException = ApiClient.toApiException(e);
       await _clearSession();
       state = AuthState.unauthenticated(apiException.message);

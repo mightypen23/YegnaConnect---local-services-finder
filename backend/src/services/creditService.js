@@ -113,24 +113,25 @@ async function debitProvider(providerId, amount, reason, referenceId, referenceT
 }
 
 /**
- * Purchase a credit top-up package (50 birr = 100 credits).
+ * Purchase credits with a custom amount.
+ * Rate: 1 credit = 0.5 birr  (i.e. 100 credits = 50 birr).
+ * Minimum purchase is 10 credits.
  *
  * @param {string} providerId
- * @param {number} packages   Number of 50-birr / 100-credit packages to buy
+ * @param {number} credits   Number of credits to buy (min 10)
  */
-async function purchaseCredits(providerId, packages) {
-  if (!Number.isInteger(packages) || packages <= 0) {
-    const err = new Error('Package count must be a positive integer');
+async function purchaseCredits(providerId, credits) {
+  if (!Number.isInteger(credits) || credits < 10) {
+    const err = new Error('Credit amount must be an integer of at least 10');
     err.status = 400;
     throw err;
   }
 
-  const credits = packages * CREDIT_PACKAGE_CREDITS;
-  const amountPaid = packages * CREDIT_PACKAGE_PRICE_BIRR;
+  const amountPaid = (credits / CREDIT_PACKAGE_CREDITS) * CREDIT_PACKAGE_PRICE_BIRR;
 
   await creditProvider(
     providerId, credits,
-    `Credit purchase: ${amountPaid} birr for ${credits} credits`, null, 'Purchase'
+    `Credit purchase: ${amountPaid.toFixed(2)} birr for ${credits} credits`, null, 'Purchase'
   );
 
   return getBalance(providerId);

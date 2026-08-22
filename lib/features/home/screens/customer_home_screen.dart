@@ -197,30 +197,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   );
                 },
               ),
-              const SizedBox(height: 28),
-
-              // "Book a Service" Action Button
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: FilledButton(
-                  onPressed: () => context.push('/create-booking'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.greenLight,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    'Book a Service',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         ),

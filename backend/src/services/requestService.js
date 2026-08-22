@@ -12,6 +12,14 @@ const LEAD_COST = 10; // Credits deducted when a provider accepts (meets) a cust
 async function createRequest(customerId, data) {
   const { category_id, description, latitude, longitude, provider_id, client_id } = data;
 
+  // Provider accounts cannot book services
+  const customer = await User.findByPk(customerId);
+  if (!customer || customer.role === 'provider') {
+    const err = new Error('Provider accounts cannot book services');
+    err.status = 403;
+    throw err;
+  }
+
   // Verify category exists
   const category = await Category.findByPk(category_id);
   if (!category) {
@@ -28,6 +36,12 @@ async function createRequest(customerId, data) {
       err.status = 404;
       throw err;
     }
+    // A provider cannot order from themselves
+    if (provider.user_id === customerId) {
+      const err = new Error('You cannot book your own service');
+      err.status = 400;
+      throw err;
+    }
   }
 
   const request = await requestRepository.create({
@@ -40,6 +54,34 @@ async function createRequest(customerId, data) {
     client_id: client_id || null,
     status: 'pending'
   });
+
+  // Notify the provider that a new request was created
+  if (provider_id) {
+    try {
+      // Notifications belong to users — resolve the ServiceProvider row
+      // to its owning User id, otherwise the provider never sees it.
+      const targetProvider = await ServiceProvider.findByPk(provider_id, {
+        attributes: ['id', 'user_id']
+      });
+      if (targetProvider?.user_id) {
+        const customerName = customer?.full_name || 'A customer';
+        await notificationService.createNotification({
+          userId: targetProvider.user_id,
+          title: 'New Service Request',
+          message: `'${customerName}' requested your service`,
+          type: 'new_request',
+          referenceId: request.id,
+          referenceType: 'ServiceRequest'
+        });
+        console.log(`[notify] new_request -> user ${targetProvider.user_id} for request ${request.id}`);
+      } else {
+        console.warn(`[notify] no owning user found for provider ${provider_id}`);
+      }
+    } catch (e) {
+      // Notification failure should not block the request
+      console.error('[notify] failed to create new_request notification:', e.message);
+    }
+  }
 
   return requestRepository.findById(request.id);
 }
@@ -192,8 +234,10 @@ if (!isAuthorized) {
   }
 
   await sequelize.transaction(async (t) => {
-    // Refund credit if provider had accepted
-    if (request.provider_id && request.status === 'accepted') {
+    // Refund the lead credit whenever the provider had already paid for
+    // this lead (accepted it or started work on it).
+    const providerPaid = ['accepted', 'in_progress'].includes(request.status);
+    if (request.provider_id && providerPaid) {
       await creditService.creditProvider(
         request.provider_id, LEAD_COST,
         'Lead cancelled — refund', requestId, 'ServiceRequest',

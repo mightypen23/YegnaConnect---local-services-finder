@@ -31,13 +31,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     return Scaffold(
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 100),
+        // Bottom clearance keeps the last provider cards above the floating
+        // bottom navigation bar.
+        padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 100),
         child: Column(
           children: [
             // Top Green Gradient Header
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 48, 20, 24),
+              padding: const EdgeInsets.fromLTRB(20, 44, 20, 24),
               decoration: const BoxDecoration(
                 gradient: AppTheme.headerGradient,
                 borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
@@ -126,6 +128,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       ),
                       TextButton.icon(
                         onPressed: () {
+                          // Close the keyboard so it doesn't cover the
+                          // filter sheet while choosing filters.
+                          FocusScope.of(context).unfocus();
                           showModalBottomSheet(
                             context: context,
                             isScrollControlled: true,
@@ -246,12 +251,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 }
 
-class _ProviderCardItem extends StatelessWidget {
+class _ProviderCardItem extends ConsumerWidget {
   const _ProviderCardItem({required this.provider});
   final ProviderModel provider;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final position = ref.watch(userPositionProvider).value;
+    final distanceKm = providerDistanceKm(position, provider);
+
     return InkWell(
       onTap: () => context.push('/provider-detail/${provider.id}'),
       borderRadius: BorderRadius.circular(16),
@@ -310,11 +318,13 @@ class _ProviderCardItem extends StatelessWidget {
                         ' (${provider.reviewCount > 999 ? '1.2k' : provider.reviewCount})',
                         style: const TextStyle(color: AppTheme.muted, fontSize: 12),
                       ),
-                      const SizedBox(width: 10),
-                      Text(
-                        '• ${provider.distanceKm} km away',
-                        style: const TextStyle(color: AppTheme.muted, fontSize: 12),
-                      ),
+                      if (distanceKm != null) ...[
+                        const SizedBox(width: 10),
+                        Text(
+                          '• ${distanceKm.toStringAsFixed(1)} km away',
+                          style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 6),

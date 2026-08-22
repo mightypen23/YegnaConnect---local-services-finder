@@ -8,6 +8,7 @@ const {
   updateProvider,
   setLocation,
   submitVerificationBadge,
+  getProviderStats,
   ProviderError
 } = require('../services/providerService');
 
@@ -97,9 +98,8 @@ function sanitizePublicProvider(provider) {
     id: p.id,
     user_id: p.user_id,
     full_name: p.user?.full_name ?? null,
-    // Public directory entries do not expose phone numbers. Contact details
-    // are returned only through an accepted request flow.
-    phone_number: null,
+    // Expose phone number as requested by user
+    phone_number: p.user?.phone_number ?? null,
     bio: p.bio,
     trust_score: p.trust_score == null ? null : Number(p.trust_score),
     verification_status: p.verification_status,
@@ -242,6 +242,8 @@ const setLocationHandler = asyncHandler(async (req, res) => {
     accuracy: req.body.accuracy ?? null,
     address: req.body.address ?? null,
     city: req.body.city ?? null,
+    region: req.body.region ?? null
+  });
   res.json({ provider: sanitizeProvider(provider) });
 });
 
@@ -254,6 +256,11 @@ const submitVerificationHandler = asyncHandler(async (req, res) => {
     evidenceUrl: evidence_url
   });
   res.status(201).json({ badge });
+});
+
+const getProviderStatsHandler = asyncHandler(async (req, res) => {
+  const stats = await getProviderStats(req.user.id);
+  res.json({ stats });
 });
 
 module.exports = {
@@ -269,5 +276,6 @@ module.exports = {
   getMe,
   update,
   setLocationHandler,
-  submitVerificationHandler
+  submitVerificationHandler,
+  getProviderStatsHandler
 };

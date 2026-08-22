@@ -178,6 +178,13 @@ async function setLocation(id, userId, location) {
     throw new ProviderError(403, 'You do not have access to this provider profile');
   }
 
+  await sequelize.transaction(async (t) => {
+    await providerRepository.updateLocation(id, location, { transaction: t });
+  });
+
+  return getById(id, userId);
+}
+
 async function submitVerificationBadge(userId, { badgeType = 'identity_verified', evidence, evidenceUrl }) {
   const provider = await providerRepository.findByUserId(userId);
   if (!provider) {
@@ -202,4 +209,21 @@ async function submitVerificationBadge(userId, { badgeType = 'identity_verified'
   });
 }
 
-module.exports = { createProvider, updateProvider, getById, getByUserId, listDirectory, listChanged, getPublicById, setLocation, submitVerificationBadge, DIRECTORY_INCLUDE, ProviderError };}
+async function getProviderStats(userId) {
+  const provider = await providerRepository.findByUserId(userId);
+  if (!provider) {
+    throw new ProviderError(404, 'Provider profile not found');
+  }
+  const requestRepository = require('../repositories/RequestRepository');
+  const counts = await requestRepository.countByStatus(provider.id);
+  const completed = counts.completed || 0;
+  const active = (counts.accepted || 0) + (counts.in_progress || 0);
+  const pending = counts.pending || 0;
+  return {
+    completedJobs: completed,
+    activeJobs: active,
+    pendingLeads: pending
+  };
+}
+
+module.exports = { createProvider, updateProvider, getById, getByUserId, listDirectory, listChanged, getPublicById, setLocation, submitVerificationBadge, getProviderStats, DIRECTORY_INCLUDE, ProviderError };
